@@ -1,0 +1,1500 @@
+// History:
+//- improved clustering procedure, two different algorithms implemented: COG & analog head-tail, Z. Drasal Apr 2010
+//- only 1 relation TrackerPulse <--> SimTrackerHit read in, Z. Drasal May 2010
+//- output relation TrackerHit <--> SimTrackerHit not used, SimTrackerHits (without weights) accessible via TrackerHit->getRawHits() method, Z. Drasal May 2010
+//- corrected charge units, Z. Drasal May 2010
+//- TrackerHit -> rawHits() contains 1 SimTrackerHit, which contributed with highest weight, Z. Drasal Oct 2010
+
+#include "SiStripClus.h"
+#include "Colours.h"
+#include "PhysicalConstants.h"
+
+#include "SiStripGeomBuilder.h"
+
+#include <iomanip>
+#include <math.h>
+#include <stdlib.h>
+
+// Include LCIO header files
+#include <lcio.h>
+#include <EVENT/LCCollection.h>
+#include <IMPL/LCCollectionVec.h>
+#include <IMPL/LCFlagImpl.h>
+#include <IMPL/LCRelationImpl.h>
+#include <UTIL/LCRelationNavigator.h>
+#include <IMPL/TrackerPulseImpl.h>
+#include <IMPL/TrackerHitImpl.h>
+
+// Include Marlin
+#include <streamlog/streamlog.h>
+
+// Namespaces
+using namespace CLHEP;
+
+namespace sistrip {
+
+//
+// Instantiate this object
+//
+SiStripClus anSiStripClus;
+
+//
+// Constructor
+//
+SiStripClus::SiStripClus() : Processor("SiStripClus")
+{
+// Processor description
+   _description = "SiStripClus: Marlin processor intended for cluster finding - using digitized data worked out with SiStripDigi";
+
+// Define compulsory parameters
+   registerProcessorParameter( "CMSnoise",
+                               "Common mode subtracted noise, set in electrons",
+                               _CMSnoise,
+                               float(1000) );
+
+   registerProcessorParameter( "FloatingStripsRPhi",
+                               "Is every even strip floating in R-Phi?",
+                               _floatStripsRPhi,
+                               bool(false));
+
+   registerProcessorParameter( "FloatingStripsZ",
+                               "Is every even strip floating in Z?",
+                               _floatStripsZ,
+                               bool(false));
+
+   std::vector<float> resSVDFirstInRPhi;
+
+   resSVDFirstInRPhi.push_back( 6.5); resSVDFirstInRPhi.push_back( 6.0); resSVDFirstInRPhi.push_back( 6.0); // 20 , 30 , 40  degrees
+   resSVDFirstInRPhi.push_back( 7.0); resSVDFirstInRPhi.push_back( 7.0); resSVDFirstInRPhi.push_back( 6.0); // 50 , 60 , 70  degrees
+   resSVDFirstInRPhi.push_back( 6.5); resSVDFirstInRPhi.push_back( 6.5); resSVDFirstInRPhi.push_back( 6.5); // 80 , 90 , 100 degrees
+   resSVDFirstInRPhi.push_back( 6.5); resSVDFirstInRPhi.push_back( 6.5); resSVDFirstInRPhi.push_back( 6.5); // 110, 120, 130 degrees
+   resSVDFirstInRPhi.push_back( 6.5); resSVDFirstInRPhi.push_back( 6.0);                                    // 140, 150 degrees
+
+   registerProcessorParameter( "ResolutionOfSVDFirstInRPhi",
+                               "Resolution of first SVD layer in R-Phi (in um)",
+                               _resSVDFirstInRPhi,
+                               resSVDFirstInRPhi);
+
+   std::vector<float> resSVDOtherInRPhi;
+   resSVDOtherInRPhi.push_back( 7.5); resSVDOtherInRPhi.push_back( 9.5); resSVDOtherInRPhi.push_back(10.5); // 20 , 30 , 40  degrees
+   resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(11.0); // 50 , 60 , 70  degrees
+   resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(11.0); // 80 , 90 , 100 degrees
+   resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(11.0); // 110, 120, 130 degrees
+   resSVDOtherInRPhi.push_back(11.0); resSVDOtherInRPhi.push_back(10.0);                                    // 140, 150 degrees
+
+   registerProcessorParameter( "ResolutionOfSVDOtherInRPhi",
+                               "Resolution of other SVD layers in R-Phi (in um) ",
+                               _resSVDOtherInRPhi,
+                               resSVDOtherInRPhi);
+
+   std::vector<float> resSVDFirstInZ;
+   resSVDFirstInZ.push_back(20.0); resSVDFirstInZ.push_back(16.0); resSVDFirstInZ.push_back(14.0); // 20 , 30 , 40  degrees
+   resSVDFirstInZ.push_back(14.0); resSVDFirstInZ.push_back(13.0); resSVDFirstInZ.push_back(13.0); // 50 , 60 , 70  degrees
+   resSVDFirstInZ.push_back(28.0); resSVDFirstInZ.push_back(28.0); resSVDFirstInZ.push_back(28.0); // 80 , 90 , 100 degrees
+   resSVDFirstInZ.push_back(14.0); resSVDFirstInZ.push_back(13.0); resSVDFirstInZ.push_back(13.0); // 110, 120, 130 degrees
+   resSVDFirstInZ.push_back(14.0); resSVDFirstInZ.push_back(16.0);                                 // 140, 150 degrees
+
+   registerProcessorParameter( "ResolutionOfSVDFirstInZ",
+                               "Resolution of first SVD layer along Z axis (in um)",
+                               _resSVDFirstInZ,
+                                resSVDFirstInZ);
+
+   std::vector<float> resSVDOtherInZ;
+   resSVDOtherInZ.push_back(16.0); resSVDOtherInZ.push_back(16.0); resSVDOtherInZ.push_back(15.0); // 20 , 30 , 40  degrees
+   resSVDOtherInZ.push_back(14.0); resSVDOtherInZ.push_back(17.0); resSVDOtherInZ.push_back(34.0); // 50 , 60 , 70  degrees
+   resSVDOtherInZ.push_back(50.0); resSVDOtherInZ.push_back(50.0); resSVDOtherInZ.push_back(50.0); // 80 , 90 , 100 degrees
+   resSVDOtherInZ.push_back(34.0); resSVDOtherInZ.push_back(14.0); resSVDOtherInZ.push_back(14.0); // 110, 120, 130 degrees
+   resSVDOtherInZ.push_back(16.0); resSVDOtherInZ.push_back(16.0);                                 // 140, 150 degrees
+
+   registerProcessorParameter( "ResolutionOfSVDOtherInZ",
+                               "Resolution of other SVD layers along Z axis (in um) ",
+                               _resSVDOtherInZ,
+                                resSVDOtherInZ);
+
+   registerProcessorParameter( "S/NSeedStrips",
+                               "Signal to noise ratio cut for seed strips",
+                               _SNseed,
+                               float(5) );
+
+   registerProcessorParameter( "S/NAdjacentStrips",
+                               "Signal to noise ratio cut for adjacent strips",
+                               _SNadjacent,
+                               float(3) );
+
+   registerProcessorParameter( "S/NCluster",
+                               "Signal to noise ratio cut for total cluster",
+                               _SNtotal,
+                               float(8) );
+
+   registerProcessorParameter( "TanOfAvgELorentzShift",
+                               "Tangent of electrons' average Lorentz shift (0.20 for 273 K, 0.175 for 300 K)",
+                               _TanOfAvgELorentzShift,
+                               float(0.175) );
+
+   registerProcessorParameter( "TanOfAvgHLorentzShift",
+                               "Tangent of holes' average Lorentz shift (0.05 for 273 K, 0.039 for 300 K)",
+                               _TanOfAvgHLorentzShift,
+                               float(0.039) );
+
+   registerProcessorParameter( "InputCollectionName",
+                               "Name of input collection",
+                               _inColName,
+                               std::string("SVDDigits") );
+
+   registerProcessorParameter( "OutputCollectionName",
+			                      "Name of output collection",
+			                      _outColName,
+			                      std::string("SVDTrackerHits") );
+
+   registerProcessorParameter( "RelCollectionNamePlsToSim",
+                               "Name of input relation collection - TrackerPulse to SimTrackerHit (if nonzero, required)",
+                               _relColNamePlsToSim,
+                               std::string("SVDDigitsToSimHitsRel") );
+}
+
+//
+// Method called at the beginning of data processing
+//
+void SiStripClus::init()
+{
+	// Set variables in appropriate physical units
+   _CMSnoise   *= e;
+
+   for (unsigned int i=0; i<_resSVDFirstInRPhi.size(); i++) {
+
+      _resSVDFirstInRPhi[i]   *= um;
+      _resSVDOtherInRPhi[i]   *= um;
+      _resSVDFirstInZ[i]      *= um;
+      _resSVDOtherInZ[i]      *= um;
+   }
+
+   // Get geometry parameters from Gear xml file
+	_geometry = SiStripGeomBuilder::Build("FTD");  // FIXME: Provisional para compilar
+	_geometry -> initGearParams();
+
+   // Print set parameters
+   printProcessorParams();
+
+//
+// ROOT variables
+//
+#ifdef ROOT_OUTPUT
+
+   _rootFile = new TFile("BelleII_SVD_Hits.root","recreate");
+
+   _rootFile->cd("");
+
+// Declare Tree
+   _rootTree = new TTree("Hits","Hit info");
+
+   _rootTree->Branch("Layer"      ,&_rootLayerID     ,"Layer/I"      );
+   _rootTree->Branch("Ladder"     ,&_rootLadderID    ,"Ladder/I"     );
+   _rootTree->Branch("Sensor"     ,&_rootSensorID    ,"Sensor/I"     );
+   _rootTree->Branch("RPhiSim"    ,&_rootSimRPhi     ,"SimRPhi/D"    );
+   _rootTree->Branch("RPhiRec"    ,&_rootRecRPhi     ,"RecRPhi/D"    );
+   _rootTree->Branch("RPhiClsSize",&_rootClsSizeRPhi ,"ClsSizeRPhi/D");
+   _rootTree->Branch("RPhiMCPDG"  ,&_rootMCPDGRPhi   ,"MCPDGRPhi/I"  );
+   _rootTree->Branch("ZSim"       ,&_rootSimZ        ,"SimZ/D"       );
+   _rootTree->Branch("ZRec"       ,&_rootRecZ        ,"RecZ/D"       );
+   _rootTree->Branch("ZClsSize"   ,&_rootClsSizeZ    ,"ClsSizeZ/D"   );
+   _rootTree->Branch("ZMCPDG"     ,&_rootMCPDGZ      ,"MCPDGZ/I"     );
+   _rootTree->Branch("EvtNum"     ,&_rootEvtNum      ,"EvtNum/I"     );
+
+#endif
+
+}
+
+//
+// Method called for each run
+//
+void SiStripClus::processRunHeader(LCRunHeader * run)
+{
+// Print run number
+//   streamlog_out(MESSAGE3) << DGREEN
+//                           << " Processing run: "
+//                           << ENDCOLOR
+//                           << (run->getRunNumber()+1)
+//                           << std::endl << std::endl;
+
+   _nRun++;
+}
+
+//
+// Method called for each event
+//
+void SiStripClus::processEvent(LCEvent * event)
+{
+
+// Get names of all collections saved in LCIO file
+   ConstStringVec * strVec = event->getCollectionNames();
+
+// Initialize relation navigators
+   _navigatorPls = NULL;
+
+// Initialize
+#ifdef ROOT_OUTPUT
+
+   _rootEvtNum = event->getEventNumber();
+
+#endif
+
+//
+// Get TrackerPulse collections and relation to MCParticles collection
+   LCCollection * colOfTrkPulses   = 0;
+
+   // Print header info about collections (for 1. event)
+   if (event->getEventNumber() == 0) {
+      streamlog_out(MESSAGE3) << " "
+	                           << DUNDERL
+                              << DBLUE
+	                           <<"LCCollection(s) processed:"
+	                           << ENDCOLOR
+	                           << std::endl << std::endl;
+      }
+
+   // Go through all collection names
+   for (ConstStringVec::const_iterator colName = strVec->begin(); colName != strVec->end(); colName++) {
+
+      // Tracker pulses
+      if (_inColName == (*colName)) {
+
+         // Collection must be of TrackerPulse type
+         if ( (event->getCollection(*colName))->getTypeName() == LCIO::TRACKERPULSE ) {
+
+            // Save collection
+            colOfTrkPulses = event->getCollection(*colName);
+
+            // Print info
+            if (event->getEventNumber() == 0) {
+               streamlog_out(MESSAGE3) << "  " << *colName
+                                       << std::endl;
+            }
+         }
+         // Collection NOT of TrackerPulse type
+         else {
+
+            streamlog_out(ERROR) << "Required collection: "
+                                 <<_inColName
+                                 << " found, but NOT of TRACKERPULSE type!!!"
+                                 << std::endl;
+            exit(0);
+         }
+      }
+
+      // Relation TrkPulses to SimTrackerHits
+      if ( (!_relColNamePlsToSim.empty()) && (_relColNamePlsToSim == (*colName)) ) {
+
+         // Collection must be of relation type
+         if ( (event->getCollection(*colName))->getTypeName() == LCIO::LCRELATION ) {
+
+            // Save collection into relation navigator
+            _navigatorPls = new LCRelationNavigator(event->getCollection(*colName));
+
+            // Print info
+            if (event->getEventNumber() == 0) {
+               streamlog_out(MESSAGE3) << "  " << *colName
+                                       << std::endl;
+            }
+         }
+         // Collection NOT of relation type
+         else {
+
+            streamlog_out(ERROR) << "Required collection: "
+                                 <<_relColNamePlsToSim
+                                 << " found, but NOT of LCRELATION type!!!"
+                                 << std::endl;
+            exit(0);
+         }
+      }
+   } // For - collection names
+
+   // Input collection NOT found
+   if (colOfTrkPulses == 0) {
+
+      streamlog_out(WARNING) << "Required collection: "
+                             <<_inColName
+                             << " not found!!!"
+                             << std::endl;
+   }
+
+   if ( (!_relColNamePlsToSim.empty()) && (_navigatorPls == NULL) ) {
+
+      streamlog_out(WARNING) << "Required collection: "
+                             <<_relColNamePlsToSim
+                             << " not found!!!"
+                             << std::endl;
+   }
+
+//
+// Print event number
+//   if ( ((event->getEventNumber()+1)%100 == 0) || ((event->getEventNumber()+1) == 1)) {
+//      streamlog_out(MESSAGE3) << DYELLOW
+//	   	                     << "  Processing event: "
+//	                      		<< ENDCOLOR
+//	                      		<< std::setw(5)
+//	                      		<< (event->getEventNumber()+1)
+//	                      		<< std::endl << std::endl;
+//   }
+
+//
+// Process TrackerPulse collections
+   if (colOfTrkPulses != 0) {
+
+      // Initialize variables
+      TrackerPulseImpl * pulse = 0;
+
+      // Sensor map with map of hit strips (corresponding to the given sensor)
+      SensorStripMap sensorMap;
+
+      SensorStripMap::iterator iterSMap;
+      StripChargeMap::iterator iterChMap;
+
+   	// Get number of elements in each collection
+      int nPulses = colOfTrkPulses->getNumberOfElements();
+
+      // Process pulses
+      for (int i=0; i<nPulses; i++) {
+
+      	// Copy the content of collection TrackerPulse to a pulse
+      	pulse = dynamic_cast<TrackerPulseImpl*>( colOfTrkPulses->getElementAt(i) );
+
+      	// CellID0 encodes layerID, ladderID and sensorID; cellID1 encodes strip (in Z or R-Phi)
+      	int       cellID0 = pulse->getCellID0();
+      	int       cellID1 = pulse->getCellID1();
+      	double    charge  = pulse->getCharge()*fC;
+
+      	int       stripID;
+      	StripType stripType;
+
+      	// decode stripID and stripType
+      	_geometry->decodeStripID(stripType, stripID, cellID1);
+
+      	// Find if sensor already saved in map
+      	iterSMap = sensorMap.find(cellID0);
+
+      	// Yes
+      	if (iterSMap != sensorMap.end() ) {
+
+      	   // Strip in R-Phi
+      	   if (stripType == RPhi) {
+
+      	      // Find if strip already saved in map
+      	      iterChMap = iterSMap->second[STRIPRPHI].find(stripID);
+
+      	      // Yes
+      	      if (iterChMap != iterSMap->second[STRIPRPHI].end() ) {
+
+      	         // Update charge
+      	         iterChMap->second->updateCharge(charge);
+
+      	         // Get MCParticles which contributed and update MCParticles
+                  if (_navigatorPls != NULL) {
+
+                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+
+                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+                     FloatVec::iterator    iterFloatVec = floatVec.begin();
+
+                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+                        float                  weight = *iterFloatVec;
+
+                        iterChMap->second->updateSimHitMap(simHit, weight);
+                     }
+                  }
+      	      }
+
+      	      // No --> create
+      	      else {
+
+                  Signal * signal = new Signal(charge, 0.);
+
+                  // Get MCParticles which contributed
+                  if (_navigatorPls != NULL) {
+
+                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+
+                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+                     FloatVec::iterator    iterFloatVec = floatVec.begin();
+
+                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+                        float                  weight = *iterFloatVec;
+
+                        signal->updateSimHitMap(simHit, weight);
+                     }
+                  }
+
+                  // Save all in map
+      	         iterSMap->second[STRIPRPHI][stripID] = signal;
+      	      }
+      	   }
+
+      	   // Strip in Z
+      	   else if (stripType == Z) {
+
+               // Find if strip already saved in map
+               iterChMap = iterSMap->second[STRIPZ].find(stripID);
+
+               // Yes
+               if (iterChMap != iterSMap->second[STRIPZ].end() ) {
+
+                  // Update charge
+                  iterChMap->second->updateCharge(charge);
+
+                  // Get MCParticles which contributed and update MCParticles
+                  if (_navigatorPls != NULL) {
+
+                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+
+                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+                     FloatVec::iterator    iterFloatVec = floatVec.begin();
+
+                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+                        float                  weight = *iterFloatVec;
+
+                        iterChMap->second->updateSimHitMap(simHit, weight);
+                     }
+                  }
+               }
+
+               // No --> create
+               else {
+
+                  Signal * signal = new Signal(charge, 0.);
+
+                  // Get MCParticles which contributed
+                  if (_navigatorPls != NULL) {
+
+                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+
+                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+                     FloatVec::iterator    iterFloatVec = floatVec.begin();
+
+                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+                        float                  weight = *iterFloatVec;
+
+                        signal->updateSimHitMap(simHit, weight);
+                     }
+                  }
+
+                  // Save all in map
+                  iterSMap->second[STRIPZ][stripID] = signal;
+               }
+      	   }
+
+      	   // Report error
+      	   else {
+
+      	      streamlog_out(ERROR) << "cellID1 - problem to identify if strips in Z or R-Phi!!!"
+      	                           << std::endl;
+      	      exit(0);
+      	   }
+
+      	}
+      	// No
+      	else {
+
+      	   // Strip in R-Phi
+      	   if (stripType == RPhi) {
+
+      	      // Create map
+      	      sensorMap[cellID0] = new StripChargeMap[2];
+
+      	      // Create signal
+      	      Signal * signal    = new Signal(charge, 0.);
+
+      	      // Get MCParticles which contributed and update signal
+      	      if (_navigatorPls != NULL) {
+
+      	         LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+      	         FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+
+      	         LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+      	         FloatVec::iterator    iterFloatVec = floatVec.begin();
+
+      	         for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
+
+                     EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+                     float                  weight = *iterFloatVec;
+
+                     signal->updateSimHitMap(simHit, weight);
+      	         }
+      	      }
+
+      	      // Save all in map
+               sensorMap[cellID0][STRIPRPHI][stripID] = signal;
+      	   }
+
+      	   // Strip in Z
+      	   else if (stripType == Z) {
+
+      	      // Create map
+               sensorMap[cellID0] = new StripChargeMap[2];
+
+               // Create signal
+               Signal * signal    = new Signal(charge, 0.);
+
+               // Get MCParticles which contributed
+               if (_navigatorPls != NULL) {
+
+                  LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+                  FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+
+                  LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+                  FloatVec::iterator    iterFloatVec = floatVec.begin();
+
+                  for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
+
+                     EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+                     float                  weight = *iterFloatVec;
+
+                     signal->updateSimHitMap(simHit, weight);
+                  }
+               }
+
+               // Save all in map
+               sensorMap[cellID0][STRIPZ][stripID] = signal;
+            }
+
+            // Report error
+            else {
+
+               streamlog_out(ERROR) << "cellID1 - problem to identify if strips in Z or R-Phi!!!"
+                                    << std::endl;
+               exit(0);
+            }
+
+      	} // Else
+
+      } // For - process pulses
+
+      //
+      // Find clusters
+      ClsVec clsVec;
+      findClus(sensorMap, clsVec);
+
+      // Release memory
+      for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
+
+         // Strips in R-Phi
+         for (iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) delete iterChMap->second;
+
+         // Strips in Z
+         for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) delete iterChMap->second;
+
+         // Release memory
+         delete [] iterSMap->second;
+
+      } // For
+
+      // Clear content
+      sensorMap.clear();
+
+      //
+      // Calculate real + ghost hits from clusters - in global ref. system + create relations to MCParticles
+      IMPL::LCCollectionVec * colOfTrkHits        = new IMPL::LCCollectionVec(LCIO::TRACKERHIT);
+
+      // Calculate them
+      calcHits(clsVec, colOfTrkHits);
+
+      //
+		// Save the collection (vector) of hits + relation to MC
+      event->addCollection(colOfTrkHits, _outColName);
+
+   } // If (colOfTrkPulses != 0)
+
+   // Release memory
+   if (_navigatorPls != NULL) {
+
+      delete _navigatorPls;
+      _navigatorPls = NULL;
+   }
+
+   _nEvent++;
+}
+
+//
+// Method called after each event to check the data processed
+//
+void SiStripClus::check(LCEvent * event)
+{
+}
+
+//
+// Method called after all data processing
+//
+void SiStripClus::end()
+{
+	// Release memory
+	delete _geometry;
+	_geometry = 0;
+
+#ifdef ROOT_OUTPUT
+
+   // Close file
+   _rootFile->cd("");
+   _rootFile->Write();
+   _rootFile->Close();
+
+#endif
+
+   // Print message
+   streamlog_out(MESSAGE3) << std::endl
+                           << " "
+                           << DGREEN
+                           << "Processor successfully finished!"
+                           << ENDCOLOR
+                           << std::endl;
+
+}
+
+// MAIN CLUSTER METHOD
+
+//
+// Method searching for clusters
+//
+void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
+{
+// Sensor map iterators
+	SensorStripMap::iterator iterSMap;
+	StripChargeMap::iterator iterChMap, iterChMap2, iterChMapLast;
+
+// Cluster vectors - in R-Phi, in Z
+	ClsVec clsVecInRPhi, clsVecInZ;
+
+// Cluster vector iterators
+	ClsVec::iterator iterClsVec, iterClsVec2;
+
+// Initiate variables - layerID, ladderID, sensorID, stripID, seed strip, seed charge
+	short int layerID   = 0;
+	short int ladderID  = 0;
+	short int sensorID  = 0;
+
+	int      seedStrip  = 0;
+   double   seedCharge = 0;
+
+// Bunch of strips forming cluster
+   StripChargeMap clsStrips;
+
+//
+// Search complete sensor map - find seeds & their neighbouring strips
+   for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
+
+      // Save layer ID , ...
+		int cellID = iterSMap->first;
+
+		_geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
+
+		//
+		// Clusters in Z
+      for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) {
+
+         //
+         // Zero: Save new candidate for seed strip + MC true info
+         seedStrip  = iterChMap->first;
+         seedCharge = iterChMap->second->getCharge();
+
+         const SimTrackerHitMap & seedSimHitMap = iterChMap->second->getSimHitMap();
+
+         //
+         // First: New cluster and its seed strip has been found
+         if ( seedCharge >= (_SNseed*_CMSnoise) ) {
+
+            clsStrips[seedStrip] = new Signal(seedCharge, 0.);
+            clsStrips[seedStrip]->updateSimHitMap(seedSimHitMap);
+
+            // Set this charge as zero to a[STRIPRPHI]void double counting
+            iterChMap->second->setCharge(0.);
+
+            // Continue searching - find left and right neighbours
+            bool goLeft      = true;
+            bool goRight     = true;
+
+            // If floating strips exist --> go to every even strip
+            int leftStrip  = -1;
+            int rightStrip = -1;
+
+            if (_floatStripsZ) {
+
+               leftStrip    = seedStrip - 2;
+               rightStrip   = seedStrip + 2;
+            }
+            else {
+
+               leftStrip    = seedStrip - 1;
+               rightStrip   = seedStrip + 1;
+            }
+
+            double adjCharge = 0;
+
+            // Control if left strip and right strip are in range
+            if (leftStrip  <  0)                                       goLeft  = false;
+            if (rightStrip >= _geometry->getSensorNStripsInZ(layerID)) goRight = false;
+
+            //
+            // Second: search for left neighbours
+            while ( goLeft && ((iterSMap->second[STRIPZ].find(leftStrip))!=iterSMap->second[STRIPZ].end()) ) {
+
+               adjCharge = iterSMap->second[STRIPZ][leftStrip]->getCharge();
+
+               const SimTrackerHitMap & adjSimHitMap = iterSMap->second[STRIPZ][leftStrip]->getSimHitMap();
+
+               // Charge higher than threshold set
+               if ( adjCharge >= (_SNadjacent*_CMSnoise) ) {
+
+                  clsStrips[leftStrip] = new Signal(adjCharge, 0.);
+                  clsStrips[leftStrip]->updateSimHitMap(adjSimHitMap);
+
+                  // Set this charge as zero to avoid double counting
+                  iterSMap->second[STRIPZ][leftStrip]->setCharge(0.);
+
+                  // Go on to the next strip
+                  if (_floatStripsZ) leftStrip -= 2;
+                  else               leftStrip -= 1;
+               }
+               // Charge lower - stop searching
+               else goLeft = false;
+            }
+
+            //
+            // Third: search for right neighbours
+            while (goRight && ((iterSMap->second[STRIPZ].find(rightStrip))!=iterSMap->second[STRIPZ].end()) ) {
+
+               adjCharge = iterSMap->second[STRIPZ][rightStrip]->getCharge();
+
+               const SimTrackerHitMap & adjSimHitMap = iterSMap->second[STRIPZ][rightStrip]->getSimHitMap();
+
+               // Charge higher than threshold set
+               if ( adjCharge >= (_SNadjacent*_CMSnoise) ) {
+
+                  clsStrips[rightStrip] = new Signal(adjCharge, 0.);
+                  clsStrips[rightStrip]->updateSimHitMap(adjSimHitMap);
+
+                  // Set this charge as zero to avoid double counting
+                  iterSMap->second[STRIPZ][rightStrip]->setCharge(0.);
+
+                  // Go on to the next strip
+                  if (_floatStripsZ) rightStrip += 2;
+                  else               rightStrip += 1;
+               }
+               // Charge lower - stop searching
+               else goRight = false;
+            }
+
+            //
+            // Fourth: Calculate mean position of a new cluster
+            SimTrackerHitMap clsZSimHitMap;
+            SimTrackerHitMap::const_iterator iterSHM;
+
+            // Cluster: position, charge & size
+            short int clsSizeZ   = clsStrips.size();
+            double    clsPosZ    = 0.;
+            double    clsChargeZ = 0.;
+
+            double xLeftSignal   = 0 ;
+            double qLeftSignal   = 0 ;
+
+            double xRightSignal  = 0 ;
+            double qRightSignal  = 0 ;
+
+            double qIntermSignal = 0 ;
+
+            for (iterChMap2=clsStrips.begin(); iterChMap2!=clsStrips.end(); iterChMap2++) {
+
+               // Current strip ID, posZ & charge
+               int stripID        = iterChMap2->first;
+               double stripPosZ   = _geometry->getStripPosInZ(layerID, stripID);
+               double stripCharge = iterChMap2->second->getCharge();
+
+               // Update info about MC particles which contributed
+               const SimTrackerHitMap & simHitMap = iterChMap2->second->getSimHitMap();
+
+               if (simHitMap.size() != 0) {
+
+                  for (iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
+
+                     EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
+                     float                  weight = iterSHM->second;
+
+                     if (clsZSimHitMap.find(simHit)!=clsZSimHitMap.end()) clsZSimHitMap[simHit] += weight;
+                     else                                                 clsZSimHitMap[simHit]  = weight;
+                  }
+               }
+
+               // Get last iterator
+               iterChMapLast = clsStrips.end();
+               -- iterChMapLast;
+
+               // Get leftmost signal
+               if (iterChMap2 == clsStrips.begin()) {
+
+                  xLeftSignal = stripPosZ;
+                  qLeftSignal = stripCharge;
+               }
+
+               // Get rightmost signal
+               else if (iterChMap2 == iterChMapLast) {
+
+                  xRightSignal = stripPosZ;
+                  qRightSignal = stripCharge;
+               }
+               // Get intermediate signal
+               else qIntermSignal += stripCharge;
+
+               // Update total charge
+               clsChargeZ += stripCharge;
+
+            }
+
+            // Get average intermediate signal
+            if (clsSizeZ > 2) qIntermSignal /= (clsSizeZ - 2);
+            else             qIntermSignal  = 0.;
+
+            // Analog head-tail algorithm
+            double geomPitchInZ    = _geometry->getSensorPitchInZ(layerID);
+            double readOutPitchInZ = 0.;
+            if (_floatStripsZ) readOutPitchInZ = 2*geomPitchInZ;
+            else               readOutPitchInZ =   geomPitchInZ;
+
+            // qIntermSignal >= 1/eps*qRighSignal || 1/eps*qLeftSignal --> if not don't use head-tail (delta electron ...) - use epsilon ~ 1.5
+            if ( (clsSizeZ>2) && (qLeftSignal<1.5*qIntermSignal) && (qRightSignal<1.5*qIntermSignal) ) {
+
+                 clsPosZ = (xRightSignal + xLeftSignal)/2. + (qRightSignal - qLeftSignal)/2./qIntermSignal * readOutPitchInZ;
+            }
+            // COG algorithm
+            else clsPosZ = (xRightSignal*qRightSignal + xLeftSignal*qLeftSignal)/(qRightSignal + qLeftSignal);
+
+            //
+            // Fifth: Correct cluster position to Lorentz shift (Bz is expected non-zero only --> no correction)
+            clsPosZ += 0.;
+
+            //
+            // Sixth: Save information about new cluster (cluster in Z)
+            if (clsChargeZ >= (_SNtotal*_CMSnoise)) {
+
+               StripCluster * pClusterZ = new StripCluster( layerID, ladderID, sensorID, Hep3Vector(_geometry->getSensorThick(layerID)/2., 0., clsPosZ),
+                                                            Hep3Vector(_geometry->getSensorThick(layerID)/2., 0., 0.), clsChargeZ, clsSizeZ );
+
+               pClusterZ->updateSimHitMap(clsZSimHitMap);
+
+               clsVecInZ.push_back(pClusterZ);
+            }
+
+            // Release memory
+            for (iterChMap2=clsStrips.begin(); iterChMap2!=clsStrips.end(); iterChMap2++) delete iterChMap2->second;
+
+            // Clear content
+            clsStrips.clear();
+
+         } // If found new cluster
+
+      } // For clusters in Z
+
+      //
+      // Clusters in R-Phi + 3D clusters utilizing Z (use Z position of "clusters in Z" and create 3D clusters from them)
+      for (iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) {
+
+         //
+         // Zero: Save new candidate for seed strip + MC true info
+         seedStrip  = iterChMap->first;
+         seedCharge = iterChMap->second->getCharge();
+
+         const SimTrackerHitMap & seedSimHitMap = iterChMap->second->getSimHitMap();
+
+         //
+         // First: New cluster and its seed strip has been found
+         if ( seedCharge >= (_SNseed*_CMSnoise) ) {
+
+            clsStrips[seedStrip] = new Signal(seedCharge, 0.);
+            clsStrips[seedStrip]->updateSimHitMap(seedSimHitMap);
+
+            // Set this charge as zero to avoid double counting
+            iterChMap->second->setCharge(0.);
+
+            // Continue searching - find left and right neighbours
+            bool goLeft      = true;
+            bool goRight     = true;
+
+            // If floating strips exist --> go to every even strip
+            int leftStrip  = -1;
+            int rightStrip = -1;
+
+            if (_floatStripsRPhi) {
+
+               leftStrip    = seedStrip - 2;
+               rightStrip   = seedStrip + 2;
+            }
+            else {
+
+               leftStrip    = seedStrip - 1;
+               rightStrip   = seedStrip + 1;
+            }
+
+            double adjCharge = 0;
+
+            // Control if left strip and right strip are in range
+            if (leftStrip  <  0)                                          goLeft  = false;
+            if (rightStrip >= _geometry->getSensorNStripsInRPhi(layerID)) goRight = false;
+
+            //
+            // Second: Search for left neighbours
+            while ( goLeft && ((iterSMap->second[STRIPRPHI].find(leftStrip))!=iterSMap->second[STRIPRPHI].end()) ) {
+
+               adjCharge   = iterSMap->second[STRIPRPHI][leftStrip]->getCharge();
+
+               const SimTrackerHitMap & adjSimHitMap = iterSMap->second[STRIPRPHI][leftStrip]->getSimHitMap();
+
+               // Charge higher than threshold set
+               if ( adjCharge >= (_SNadjacent*_CMSnoise) ) {
+
+                  clsStrips[leftStrip] = new Signal(adjCharge, 0.);
+                  clsStrips[leftStrip]->updateSimHitMap(adjSimHitMap);
+
+                  // Set this charge as zero to avoid double counting
+                  iterSMap->second[STRIPRPHI][leftStrip]->setCharge(0.);
+
+                  // Go on to the next strip
+                  if (_floatStripsRPhi) leftStrip -= 2;
+                  else                  leftStrip -= 1;
+               }
+               // Charge lower - stop searching
+               else goLeft = false;
+            }
+
+            //
+            // Third: Search for right neighbours
+            while (goRight && ((iterSMap->second[STRIPRPHI].find(rightStrip))!=iterSMap->second[STRIPRPHI].end()) ) {
+
+               adjCharge = iterSMap->second[STRIPRPHI][rightStrip]->getCharge();
+
+               const SimTrackerHitMap & adjSimHitMap = iterSMap->second[STRIPRPHI][rightStrip]->getSimHitMap();
+
+               // Charge higher than threshold set
+               if ( adjCharge >= (_SNadjacent*_CMSnoise) ) {
+
+                  clsStrips[rightStrip] = new Signal(adjCharge, 0.);
+                  clsStrips[rightStrip]->updateSimHitMap(adjSimHitMap);
+
+                  // Set this charge as zero to avoid double counting
+                  iterSMap->second[STRIPRPHI][rightStrip]->setCharge(0.);
+
+                  // Go on to the next strip
+                  if (_floatStripsRPhi) rightStrip += 2;
+                  else                  rightStrip += 1;
+               }
+               // Charge lower - stop searching
+               else goRight = false;
+            }
+
+            //
+            // Fourth: Go through all Z clusters and calculate mean position in R-Phi and save them together as a 3D cluster
+            for (iterClsVec=clsVecInZ.begin(); iterClsVec!=clsVecInZ.end(); iterClsVec++) {
+
+               // Get and save info about cluster in Z
+               StripCluster * pClusterZ    = *iterClsVec;
+
+               const SimTrackerHitMap & clsZSimHitMap = pClusterZ->getSimHitMap();
+
+               // Cluster: position, charge & size
+               short int clsSizeRPhi   = clsStrips.size();
+               double    clsPosRPhi    = 0.;
+               double    clsChargeRPhi = 0.;
+
+               double xLeftSignal   = 0 ;
+               double qLeftSignal   = 0 ;
+
+               double xRightSignal  = 0 ;
+               double qRightSignal  = 0 ;
+
+               double qIntermSignal = 0 ;
+
+               SimTrackerHitMap clsRPhiSimHitMap;
+               SimTrackerHitMap::const_iterator iterSHM;
+
+               // Find clusters in R-Phi
+               for (iterChMap2=clsStrips.begin(); iterChMap2!=clsStrips.end(); iterChMap2++) {
+
+                  // Current strip ID, posRPhi & charge
+                  int stripID         = iterChMap2->first;
+                  double stripPosRPhi = _geometry->getStripPosInRPhi(layerID, stripID, pClusterZ->getPosZ());
+                  double stripCharge  = iterChMap2->second->getCharge();
+
+                  // Update info about MC particles which contributed
+                  const SimTrackerHitMap & simHitMap = iterChMap2->second->getSimHitMap();
+
+                  if (simHitMap.size() != 0) {
+
+                     for (iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
+                        float                  weight = iterSHM->second;
+
+                        if (clsRPhiSimHitMap.find(simHit)!=clsRPhiSimHitMap.end()) clsRPhiSimHitMap[simHit] += weight;
+                        else                                                       clsRPhiSimHitMap[simHit]  = weight;
+                     }
+                  }
+
+                  // Get last iterator
+                   iterChMapLast = clsStrips.end();
+                   -- iterChMapLast;
+
+                   // Get leftmost signal
+                   if (iterChMap2 == clsStrips.begin()) {
+
+                      xLeftSignal = stripPosRPhi;
+                      qLeftSignal = stripCharge;
+                   }
+
+                   // Get rightmost signal
+                   else if (iterChMap2 == iterChMapLast) {
+
+                      xRightSignal = stripPosRPhi;
+                      qRightSignal = stripCharge;
+                   }
+                   // Get intermediate signal
+                   else qIntermSignal += stripCharge;
+
+                   // Update total charge
+                   clsChargeRPhi += stripCharge;
+
+               }
+
+               // Get average intermediate signal
+               if (clsSizeRPhi > 2) qIntermSignal /= (clsSizeRPhi - 2);
+               else                 qIntermSignal  = 0.;
+
+               // Analog head-tail algorithm
+               double geomPitchInRPhi    = _geometry->getSensorPitchInRPhi(layerID, pClusterZ->getPosZ());
+               double readOutPitchInRPhi = 0.;
+               if (_floatStripsRPhi) readOutPitchInRPhi = 2*geomPitchInRPhi;
+               else                  readOutPitchInRPhi =   geomPitchInRPhi;
+
+               // qIntermSignal >= 1/eps*qRighSignal || 1/eps*qLeftSignal --> if not don't use head-tail (delta electron ...) - use epsilon ~ 1.5
+               if ( (clsSizeRPhi>2) && (qLeftSignal<1.5*qIntermSignal) && (qRightSignal<1.5*qIntermSignal) ) {
+
+                    clsPosRPhi = (xRightSignal + xLeftSignal)/2. + (qRightSignal - qLeftSignal)/2./qIntermSignal * readOutPitchInRPhi;
+               }
+               // COG algorithm
+               else clsPosRPhi = (xRightSignal*qRightSignal + xLeftSignal*qLeftSignal)/(qRightSignal + qLeftSignal);
+
+
+               // Fifth: Correct mean position to Lorentz shift (Bz is expected non-zero only; correct to theta angle of each sensor)
+               clsPosRPhi += _TanOfAvgELorentzShift * _geometry->getSensorThick(layerID)/2. * cos(_geometry->getLadderTheta(layerID));
+
+               //
+               // Sixth: Save information about new cluster (cluster in RPhi), if cluster charge higher than threshold set
+               if (clsChargeRPhi >= (_SNtotal*_CMSnoise)) {
+
+                  StripCluster * pClusterRPhi = new StripCluster( layerID, ladderID, sensorID, Hep3Vector(_geometry->getSensorThick(layerID)/2., clsPosRPhi, 0.),
+                                                                  Hep3Vector(_geometry->getSensorThick(layerID)/2., 0., 0.), clsChargeRPhi, clsSizeRPhi );
+
+                  pClusterRPhi->updateSimHitMap(clsRPhiSimHitMap);
+
+                  clsVecInRPhi.push_back(pClusterRPhi);
+
+                  // Create final 3D cluster
+                  Hep3Vector position( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosY()     , pClusterZ->getPosZ());
+                  Hep3Vector posSigma( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosSigmaY(), pClusterZ->getPosSigmaZ());
+
+                  double     totalCharge = (pClusterRPhi->getCharge() + pClusterZ->getCharge() )/2.;
+
+                  StripCluster * pCluster3D = new StripCluster( layerID, ladderID, sensorID, position, posSigma, totalCharge, 0);
+
+                  SimTrackerHitMap cls3DSimHitMap = clsRPhiSimHitMap;
+
+                  // Update MC true info for 3D
+                  if (cls3DSimHitMap.size() != 0) {
+
+                     for (iterSHM=clsZSimHitMap.begin(); iterSHM!=clsZSimHitMap.end(); iterSHM++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
+                        float                  weight = iterSHM->second;
+
+                        if (cls3DSimHitMap.find(simHit)!=cls3DSimHitMap.end()) cls3DSimHitMap[simHit] += weight;
+                        else                                                   cls3DSimHitMap[simHit]  = weight;
+                     }
+
+                     pCluster3D->updateSimHitMap(cls3DSimHitMap);
+                  }
+
+                  //
+                  // if defined ROOT-OUTPUT, save info
+#ifdef ROOT_OUTPUT
+
+                  // Set layer, ladder, sensor ID
+                  _rootLayerID     = layerID;
+                  _rootLadderID    = ladderID;
+                  _rootSensorID    = sensorID;
+
+                  // Set reconstructed positions
+                  _rootRecRPhi     = pClusterRPhi->getPosY() / mm;
+                  _rootRecZ        = pClusterZ->getPosZ()    / mm;
+
+                  // Set cluster sizes
+                  _rootClsSizeRPhi = pClusterRPhi->getSize();
+                  _rootClsSizeZ    = pClusterZ->getSize();
+
+                  // Set simulated position in RPhi & MC particle
+
+                  // Find SimTrackerHit with highest weight
+                  EVENT::SimTrackerHit * simHit = 0;
+                  float                  weight = 0;
+
+                  const SimTrackerHitMap & simHitMapRPhi = pClusterRPhi->getSimHitMap();
+
+                  for (iterSHM=simHitMapRPhi.begin(); iterSHM!=simHitMapRPhi.end(); iterSHM++) {
+
+                     // Find contribution with highest weight
+                     if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
+
+                        simHit = iterSHM->first;
+                        weight = iterSHM->second;
+                     }
+                  }
+
+                  // SimHit global position
+                  Hep3Vector simPosGlob;
+                  Hep3Vector simPosLoc;
+
+                  simPosGlob.setX(simHit->getPosition()[0]*mm);
+                  simPosGlob.setY(simHit->getPosition()[1]*mm);
+                  simPosGlob.setZ(simHit->getPosition()[2]*mm);
+                  simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, sensorID, simPosGlob);
+
+                  _rootMCPDGRPhi = simHit->getMCParticle()->getPDG();
+                  _rootSimRPhi   = simPosLoc.getY() / mm;
+
+                  // Set simulated position in Z & MC particle
+
+                  // Find SimTrackerHit with highest weight
+                  const SimTrackerHitMap & simHitMapZ = pClusterZ->getSimHitMap();
+
+                  for (iterSHM=simHitMapZ.begin(); iterSHM!=simHitMapZ.end(); iterSHM++) {
+
+                     // Find contribution with highest weight
+                     if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
+
+                        simHit = iterSHM->first;
+                        weight = iterSHM->second;
+                     }
+                  }
+
+                  // SimHit global position
+                  simPosGlob.setX(simHit->getPosition()[0]*mm);
+                  simPosGlob.setY(simHit->getPosition()[1]*mm);
+                  simPosGlob.setZ(simHit->getPosition()[2]*mm);
+                  simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, sensorID, simPosGlob);
+
+                  _rootMCPDGZ = simHit->getMCParticle()->getPDG();
+                  _rootSimZ   = simPosLoc.getZ() / mm;
+
+                  // Fill the tree
+                  _rootFile->cd("");
+                  _rootTree->Fill();
+
+#endif
+
+                  clsVec.push_back(pCluster3D);
+               }
+
+            } // Go through all Z clusters
+
+            // Release memory
+            for (iterChMap2=clsStrips.begin(); iterChMap2!=clsStrips.end(); iterChMap2++) delete iterChMap2->second;
+
+            // Clear content
+            clsStrips.clear();
+
+         } // If found new cluster
+
+      } // For clusters in R-Phi
+
+      //
+      // Release memory
+      for (iterClsVec=clsVecInRPhi.begin(); iterClsVec!=clsVecInRPhi.end(); iterClsVec++) delete *iterClsVec;
+      for (iterClsVec=clsVecInZ.begin();    iterClsVec!=clsVecInZ.end();    iterClsVec++) delete *iterClsVec;
+
+      // Clear
+      clsVecInRPhi.clear();
+      clsVecInZ.clear();
+
+   } // For sensor map
+
+}
+
+// OTHER METHODS
+
+//
+// Method calculating hits from given clusters
+//
+void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits) ////,IMPL::LCCollectionVec * colOfRelMCToTrkHits)
+{
+	// Cluster - position, covariance matrix (3x3 = 6 parameters = lower triangle matrix)
+	ClsVec::iterator iterClsVec;
+
+	short int layerID;
+	short int ladderID;
+	short int sensorID;
+
+   Hep3Vector position;
+   Hep3Vector posSigma;
+
+   double totalCharge;
+
+   // Print sensor info
+   streamlog_out(MESSAGE2) << std::endl
+                           << "   Total number of reconstructed hits: "
+                           << clsVec.size()
+                           << " hit(s)"
+                           << std::endl;
+
+	// Go through all clusters
+	for (iterClsVec=clsVec.begin(); iterClsVec!=clsVec.end(); iterClsVec++) {
+
+		// Get cluster info
+		StripCluster * pCluster = *iterClsVec;
+
+		layerID     = pCluster->getLayerID();
+		ladderID    = pCluster->getLadderID();
+		sensorID    = pCluster->getSensorID();
+
+      position    = pCluster->get3Position();
+      posSigma    = pCluster->get3PosSigma();
+
+      totalCharge = pCluster->getCharge();
+
+      // Transform hit and covariance to the global ref. system
+      position = _geometry->transformPointToGlobal(layerID, ladderID, sensorID, position);
+
+      // Save into LCIO native variables and in appropriate units
+		double posLCIO[3]                = { position.getX()/mm, position.getY()/mm, position.getZ()/mm };
+		float  covLCIO[TRKHITNCOVMATRIX] = { 0.                ,
+			                                  0.                , 0.                ,
+			                                  0.                , 0.                , 0. };
+
+		// Calculate resolution
+		calcResolution(layerID, position.theta()/pi * 180., covLCIO);
+
+		// Create new Tracker hit
+		TrackerHitImpl * trkHit = new TrackerHitImpl();
+
+		// Set hit type: SVD type is 201 + layer ID
+		trkHit->setType(layerID + 201);
+		trkHit->setPosition(posLCIO);
+      trkHit->setCovMatrix(covLCIO);
+      trkHit->setdEdx(totalCharge / e); // in electrons
+      trkHit->setTime(0.); // NOT IMPLEMENTED YET
+
+      // Set simTrkHits which contributed & find hit with highest weight
+      const SimTrackerHitMap & simHitMap = pCluster->getSimHitMap();
+      //float                    weightSum = pCluster->getSimHitWeightSum();
+      SimTrackerHit          * simTrkHit = 0;
+      float                    weight    = 0;
+
+      for (SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
+
+         // Don't save "noise hits", i.e. zero pointers
+         //if (iterSimTrkHMap->first!=0) trkHit->rawHits().push_back(dynamic_cast<SimTrackerHit*>(iterSimTrkHMap->first));
+
+         // Find contribution with highest weight
+         if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
+
+            simTrkHit = iterSHM->first;
+            weight    = iterSHM->second;
+         }
+      }
+
+      // Save only hit with highest weight
+      trkHit->rawHits().push_back(simTrkHit);
+
+      // Save the hit to the collection
+      colOfTrkHits->addElement(trkHit);
+
+      // Print infor
+      printHitInfo(pCluster);
+
+      // Release memory
+      delete pCluster;
+
+	} // For
+
+	streamlog_out(MESSAGE2)    << std::endl;
+
+	// Clear content
+	clsVec.clear();
+}
+
+//
+// Method calculating hit resolution, i.e. covariance matrix
+//
+void SiStripClus::calcResolution(short int layerID, double hitTheta, float * covMatrix)
+{
+// Define array of theta angle
+   static float theta[14] = {20., 30., 40., 50., 60., 70., 80., 90., 100., 110., 120., 130., 140., 150.};
+
+// Find correct bin for theta (-1 for < 20deg; 14 for > 150deg)
+   int iTheta = -1;
+   for (int i=0; i<14; i++) if (hitTheta>=theta[i]) iTheta++;
+
+// Define tracker hit resolution
+   float resInZ    = 0.;
+   float resInRPhi = 0.;
+
+//
+// Calculate resolution - interpolate between given theta angles
+
+   // Theta is less than 20 degrees
+   if (iTheta == -1) {
+
+      // SVD - First layer
+      if (layerID == 2) {
+
+         resInZ    = _resSVDFirstInZ[0];
+         resInRPhi = _resSVDFirstInRPhi[0];
+      }
+
+      // SVD - Other layers
+      else {
+
+         resInZ    = _resSVDOtherInZ[0];
+         resInRPhi = _resSVDOtherInRPhi[0];
+      }
+   }
+
+   // Theta is higher than 150 degrees
+   else if (iTheta == 14) {
+
+      // SVD - First layer
+      if (layerID == 2) {
+
+         resInZ    = _resSVDFirstInZ[13];
+         resInRPhi = _resSVDFirstInRPhi[13];
+      }
+
+      // SVD - Other layers
+      else {
+
+         resInZ    = _resSVDOtherInZ[13];
+         resInRPhi = _resSVDOtherInRPhi[13];
+      }
+   }
+
+   // Interpolate between 20 and 150 degrees
+   else {
+
+      // SVD - First layer
+      if (layerID == 2) {
+
+         resInZ    = _resSVDFirstInZ[iTheta]    +
+                    (_resSVDFirstInZ[iTheta+1]    - _resSVDFirstInZ[iTheta]   )/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+         resInRPhi = _resSVDFirstInRPhi[iTheta] +
+                    (_resSVDFirstInRPhi[iTheta+1] - _resSVDFirstInRPhi[iTheta])/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+      }
+
+      // SVD - Other layers
+      else {
+
+         resInZ    = _resSVDOtherInZ[iTheta]    +
+                    (_resSVDOtherInZ[iTheta+1]    - _resSVDOtherInZ[iTheta]   )/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+         resInRPhi = _resSVDOtherInRPhi[iTheta] +
+                    (_resSVDOtherInRPhi[iTheta+1] - _resSVDOtherInRPhi[iTheta])/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+      }
+   }
+
+// Set covariance matrix in appropriate units
+   covMatrix[2] = resInRPhi/mm * resInRPhi/mm;
+   covMatrix[5] = resInZ/mm * resInZ/mm;
+}
+
+// PRINT METHODS
+
+//
+// Method printing processor parameters
+//
+void SiStripClus::printProcessorParams() const
+{
+   streamlog_out(MESSAGE3) << std::endl
+                           << " "
+	                   		<< DUNDERL
+                           << DBLUE
+                           << "SiStripClus parameters:"
+                           << ENDCOLOR
+                           << " "
+                           << std::endl  << std::endl;
+
+   streamlog_out(MESSAGE3) << std::setiosflags(std::ios::fixed | std::ios::internal )
+                           << std::setprecision(2)
+                           << "  CMS noise [fC]:              " << std::setw(4) << _CMSnoise/fC << std::endl
+                           << "                               " << std::endl
+                           << std::setprecision(1)
+                           << "  S/N cut for seed strips:     " << std::setw(3) << _SNseed      << std::endl
+                           << "  S/N cut for adjacent strips: " << std::setw(3) << _SNadjacent  << std::endl
+                           << "  S/N cut for total charge:    " << std::setw(3) << _SNtotal     << std::endl
+                           << std::resetiosflags(std::ios::showpos)
+	                   		<< std::setprecision(0)
+                           << std::endl;
+
+   if (_floatStripsRPhi)
+   streamlog_out(MESSAGE3) << "  Read-out pitch in R-Phi is 2x geom. pitch." << std::endl;
+   if (_floatStripsZ)
+   streamlog_out(MESSAGE3) << "  Read-out pitch in Z     is 2x geom. pitch." << std::endl << std::endl;
+
+}
+
+//
+// Method printing hit info
+//
+void SiStripClus::printHitInfo(const StripCluster * pCluster) const
+{
+   short int layerID   = pCluster->getLayerID();
+   short int ladderID  = pCluster->getLadderID();
+   short int sensorID  = pCluster->getSensorID();
+
+   Hep3Vector position = pCluster->get3Position();
+
+   // Print sensor info
+   streamlog_out(MESSAGE2) << "    Layer "
+                           << _geometry->getLayerRealID(layerID)   << " "
+                           << "Ladder "
+                           << ladderID                             << " "
+                           << "Sensor "
+                           << sensorID                             << std::endl;
+   streamlog_out(MESSAGE2) << "     Hit in local ref. system: "
+                           << std::fixed
+                           << std::setprecision(3)
+                           << std::setiosflags(std::ios::showpos)
+                           << "PosX [mm]: "                        << position.getX()/mm << " "
+                           << "PosY [mm]: "                        << position.getY()/mm << " "
+                           << "PosZ [mm]: "                        << position.getZ()/mm
+                           << std::setprecision(0)
+                           << std::resetiosflags(std::ios::internal | std::ios::showpos)
+                           << std::endl;
+
+   position = _geometry->transformPointToGlobal(layerID, ladderID, sensorID, position);
+
+   streamlog_out(MESSAGE2) << "     Hit in global ref. system:  "
+                           << std::fixed
+                           << std::setprecision(3)
+                           << std::setiosflags(std::ios::showpos)
+                           << "PosX [mm]: "                        << position.getX()/mm << " "
+                           << "PosY [mm]: "                        << position.getY()/mm << " "
+                           << "PosZ [mm]: "                        << position.getZ()/mm
+                           << std::setprecision(0)
+                           << std::resetiosflags(std::ios::internal | std::ios::showpos)
+                           << std::endl;
+
+}
+
+
+} // Namespace

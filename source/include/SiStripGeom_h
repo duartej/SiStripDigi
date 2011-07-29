@@ -1,0 +1,293 @@
+#ifndef SISTRIPGEOM_H
+#define SISTRIPGEOM_H 1
+
+#include <vector>
+
+// Include CLHEP header files
+#include <CLHEP/Matrix/Matrix.h>
+#include <CLHEP/Vector/ThreeVector.h>
+
+// Include Gear header files
+#include <gear/GearParameters.h>
+
+namespace sistrip {
+
+// Define constants
+#define EPS 5
+#define LAYERCOD   1000 // Const to encode and decode layers
+#define LADDERCOD    10 // Const to encode and decode ladders
+#define SENSORCOD     1 // Const to encode and decode sensors
+
+#define STRIPOFF      1 // Const to encode and decode strip offset
+#define STRIPCODRPHI  1 // Const to encode and decode strip in RPhi
+#define STRIPCODZ    -1 // Const to encode and decode strip in Z
+
+// Define strip type
+enum StripType { RPhi = 0, Z = 1 };
+
+// Define layer type
+enum LayerType { pixel = 0, stripB = 1, stripF = 2};
+
+//! Gear geometry class - holds all geometry information about silicon strip
+//! sensors. The data are taken directly from Gear xml file and values are
+//! saved in the system of units defined in PhysicalConstants.h. The local
+//! reference system is defined as follows: X-axis is perpendicular to the
+//! beam axis and to the ladder (sensor) plane; Y-axis lies in a ladder
+//! (sensor) plane and is also perpendicular to the beam axis; Z-axis is
+//! parallel to the beam axis(for zero theta); (0,0,0) point is positioned
+//! such as X, Y, Z coordinates are always positive. Strips are considered
+//! to be either perpendicular to the beam axis or parallel with the beam
+//! axis (SSDs) or both (DSSDs).
+//!
+//! @author Z. Drasal, Charles University Prague
+//!
+
+class SiStripGeom {
+
+ public:
+
+//!Constructor
+   SiStripGeom()  : _gearType(""), _numberOfLayers(9) {;}//_gearParams(0), _numberOfLayers(0) {;}
+
+//!Destructor
+	~SiStripGeom();
+
+//!Method initializing class - reads Gear parameters from XML file
+	void initGearParams();
+
+
+// MAGNETIC FIELD
+
+//!Get magnetic field - x
+	double getBx() { return _magField.getX(); }
+
+//!Get magnetic field - y
+	double getBy() { return _magField.getY(); }
+
+//!Get magnetic field - z
+	double getBz() { return _magField.getZ(); }
+
+//!Get magnetic field - Three vector
+	CLHEP::Hep3Vector get3MagField() { return _magField; }
+
+
+// GEOMETRY PROPERTIES
+
+//!Get gear type
+   std::string getGearType() { return _gearType; }
+
+// ENCODING
+//!Encode cellID
+   int encodeCellID(short int layerID, short int ladderID, short int sensorID) const;
+
+//!Decode cellID
+   void decodeCellID(short int & layerID, short int & ladderID, short int & sensorID, int cellID) const;
+
+//!Encode stripID
+   int encodeStripID(StripType type, int stripID) const;
+
+//!Decode stripID
+   void decodeStripID(StripType & type, int & stripID, int encodedStripID) const;
+
+// LAYER PROPERTIES
+
+//!Get number of layers
+   short int getNLayers() const {return _numberOfLayers;}
+
+//!Get layer real ID
+   int getLayerRealID(short int layerID) const;
+
+//!Transform real layer ID to C-type numbering 0 - n ...
+   short int getLayerIDCTypeNo(int realLayerID) const;
+
+//!Get layer type
+   short int getLayerType(short int layerID) const;
+
+//!Get layer radius
+	double getLayerRadius(short int layerID) const;
+
+//!Get layer phi zero angle
+	double getLayerPhi0(short int layerID) const;
+
+
+// LADDER PROPERTIES
+
+//!Get number of ladders
+	short int getNLadders(short int layerID) const;
+
+//!Get ladder thickness
+	double getLadderThick(short int layerID) const;
+
+//!Get ladder width (the wider one for forward sensors)
+	double getLadderWidth(short int layerID) const;
+
+//!Get ladder length
+	double getLadderLength(short int layerID) const;
+
+//!Get ladder offset in Y
+	double getLadderOffsetY(short int layerID) const;
+
+//!Get ladder offset in Z
+	double getLadderOffsetZ(short int layerID) const;
+
+//!Get ladder rotation - phi angle
+	double getLadderPhi(short int layerID, short int ladderID) const;
+
+//!Get ladder rotation - theta angle
+	double getLadderTheta(short int layerID) const;
+
+
+// SENSOR PROPERTIES
+
+//!Get number of sensors for given ladder
+	short int getNSensors(short int layerID) const;
+
+//!Get number of strips in Z axis (in each sensor)
+	int getSensorNStripsInZ(short int layerID) const;
+
+//!Get number of strips in R-Phi (in each sensor)
+	int getSensorNStripsInRPhi(short int layerID) const;
+
+//!Get sensor pitch in Z axis for barrel-type and forward-type sensors
+	double getSensorPitchInZ(short int layerID) const;
+
+//!Get sensor pitch in R-Phi for barrel-type and forward-type sensors (posZ must be in local coordinate system)
+	double getSensorPitchInRPhi(short int layerID, double posZ) const;
+
+//!Get sensor thickness
+	double getSensorThick(short int layerID) const;
+
+//!Get sensor width (the wider one for forward-type sensors)
+	double getSensorWidth(short int layerID) const;
+
+//!Get sensor width 2 (the narrower one for forward-type sensors)
+	double getSensorWidth2(short int layerID) const;
+
+//!Get sensor length
+	double getSensorLength(short int layerID) const;
+
+//!Get gap size inbetween sensors
+	double getSensorGapInBetween(short int layerID) const;
+
+//!Get width of sensor rim in Z (passive part of silicon)
+	double getSensorRimWidthInZ(short int layerID) const;
+
+//!Get width of sensor rim in R-Phi (passive part of silicon)
+	double getSensorRimWidthInRPhi(short int layerID) const;
+
+
+// TRANSFORMATION METHODS - GLOBAL REF. SYSTEM
+
+//!Transform given point from global ref. system to local ref. system (sensor)
+	CLHEP::Hep3Vector transformPointToLocal(short int layerID, short int ladderID, short int sensorID, const CLHEP::Hep3Vector & point);
+
+//!Transform given vector from global ref. system to local ref. system (sensor)
+	CLHEP::Hep3Vector transformVecToLocal(short int layerID, short int ladderID, const CLHEP::Hep3Vector & vec);
+
+//!Transform given matrix from global ref. system to local ref. system (sensor)
+   CLHEP::HepMatrix transformMatxToLocal(short int layerID, short int ladderID, const CLHEP::HepMatrix & matrix);
+
+
+// TRANSFORMATION METHODS - LOCAL REF. SYSTEM
+
+//!Transform given point from local ref. system (sensor) to global ref. system
+	CLHEP::Hep3Vector transformPointToGlobal(short int layerID, short int ladderID, short int sensorID, const CLHEP::Hep3Vector & point);
+
+//!Transform given vector from local ref. system (sensor) to global ref. system
+	CLHEP::Hep3Vector transformVecToGlobal(short int layerID, short int ladderID, const CLHEP::Hep3Vector & vec);
+
+//!Transform given diagonal matrix from local ref. system (sensor) to global ref. system
+   CLHEP::HepMatrix transformMatxToGlobal(short int layerID, short int ladderID, const CLHEP::HepMatrix & matrix);
+
+// OTHER METHODS - GLOBAL REF. SYSTEM
+
+//!Get info whether the given point is inside of Si sensor
+   bool isPointInsideSensor (short int layerID, short int ladderID, short int sensorID, const CLHEP::Hep3Vector & point) const;
+
+
+// OTHER METHODS - LOCAL REF. SYSTEM
+
+//!Get info whether the given point is out of Si sensor
+	bool isPointOutOfSensor(short int layerID, const CLHEP::Hep3Vector & point) const;
+
+//!Get strip position in Z direction for barrel-type and forward-type sensors
+	double getStripPosInZ(short int layerID, int stripID) const;
+
+//!Get strip position in R-Phi direction for barrel-type and forward-type sensors
+   double getStripPosInRPhi(short int layerID, int stripID, double posZ) const;
+
+//!Get strip ID in Z direction for barrel-type and forward-type sensors
+   int getStripIDInZ(short int layerID, double posZ) const;
+
+//!Get strip ID in R-Phi direction for barrel-type and forward-type sensors
+   int getStripIDInRPhi(short int layerID, double posRPhi, double posZ) const;
+
+// PRINT METHODS
+
+//!Method printing general Gear parameters
+	void printGearParams() const;
+
+//!Method printing sensor Gear parameters
+	void printSensorParams(short int layerID) const;
+
+ private:
+	
+	std::string _gearType;                       //!< GearType
+	//const gear::GearParameters * _gearParamsGen; //!< General gear parameters
+	//const gear::GearParameters * _gearParams;    //!< Concrete gear parameters
+	
+	// Magnetic field
+	CLHEP::Hep3Vector _magField;
+	
+	// Geometry parameters - layers
+	short int _numberOfLayers;
+
+	std::vector<double> _layerHalfPhi;
+	std::vector<double> _layerThickness;
+	std::vector<double> _layerHalfThickness;
+	std::vector<double> _layerRadius;
+	
+	/*   std::vector<int> _layerRealID;
+	     std::vector<int> _layerType;
+	     
+	     std::vector<double> _layerRadius;
+	     std::vector<double> _layerPhi0;
+	     std::vector<double> _layerTheta;*/
+
+	// Geometry parameters - ladders
+	std::vector<int> _laddersInLayer;
+	
+	std::vector<double> _layerLadderLength;
+	std::vector<double> _layerLadderWidth;
+	std::vector<double> _layerLadderHalfWidth;
+	std::vector<double> _layerActiveSiOffset;
+	
+	std::vector<double> _layerLadderGap;
+	std::vector<double> _layerPhiOffset;
+	/*   std::vector<double> _ladderThick;
+	     std::vector<double> _ladderWidth;
+	     std::vector<double> _ladderLength;
+	     std::vector<double> _ladderOffsetY;
+	//  std::vector<double> _ladderOffsetZ; FIX// 
+	 */ 
+
+	// Geometry - sensors
+	//  std::vector<int> _numberOfSensors; OUT
+
+ 	/*  std::vector<int> _sensorNStripsInZ;
+	    std::vector<int> _sensorNStripsInRPhi;
+	    std::vector<double> _sensorPitchInZ; 
+	    std::vector<double> _sensorPitchInRPhi;
+	    std::vector<double> _sensorThick;
+	    std::vector<double> _sensorWidth;
+	    std::vector<double> _sensorWidth2;
+	    std::vector<double> _sensorLength;
+	    std::vector<double> _sensorGapInBtw;
+	//  std::vector<double> _sensorRimWidthInZ; OUT
+	std::vector<double> _sensorRimWidthInRPhi;*/
+
+}; // Class
+
+} // Namespace
+
+#endif // SISTRIPGEOM_H
