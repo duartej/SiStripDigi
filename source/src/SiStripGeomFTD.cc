@@ -16,9 +16,9 @@
 
 // Include Gear header files
 #include <gear/BField.h>
-#include <gear/GearParameters.h>
-//#include <gear/FTDParameters.h>
-//#include <gear/FTDLayerLayout.h>
+//#include <gear/GearParameters.h>
+#include <gearimpl/FTDParametersImpl.h>
+#include <gearimpl/FTDLayerLayoutImpl.h>
 #include <gearimpl/Vector3D.h>
 
 // Include Marlin
@@ -37,6 +37,7 @@
 
 //template <class T> void convertunits(std::vector<T> & v2convert);
 
+//FIXME: DEPRECATED
 template <class T>
 void convertunits(std::vector<T> & vectoconvert, const T unit)
 {
@@ -50,8 +51,15 @@ void convertunits(std::vector<T> & vectoconvert, const T unit)
 namespace sistrip 
 {
 SiStripGeomFTD::SiStripGeomFTD(const std::string & detector):
-	SiStripGeom(detector)
+	SiStripGeom(detector),_ftdParams(0),_ftdLayer(0)
 {
+	if( _gearType != "FTD")
+	{
+		streamlog_out(ERROR) << "Wrong instantiation of the class. " <<
+			"See SiStripBuilder class, should have an incoherence!" <<
+			std::endl;
+		exit(0);
+	}
 }
 
 SiStripGeomFTD::~SiStripGeomFTD()
@@ -59,13 +67,10 @@ SiStripGeomFTD::~SiStripGeomFTD()
 }
 
 
-//FIXME
-//FIXME: PROVISIONAL HASTA QUE IMPLEMENTE LOS FTD EN GEAR
-//FIXME
-
 // Method initializing this class - reads Gear parameters from XML file
 void SiStripGeomFTD::initGearParams()
 {
+
 	// BField: needed for every tracker detector
 	try 
 	{
@@ -77,129 +82,140 @@ void SiStripGeomFTD::initGearParams()
 		_magField.setY( (bField.at( auxvec )).y() * T);
 		_magField.setZ( (bField.at( auxvec )).z() * T);
 	}
-	catch (gear::UnknownParameterException& e) 
+	catch(gear::UnknownParameterException& e) 
 	{
 		std::cout << "No magnetic field found in gear file!" << std::endl;
 	}
 
-	//------Get the geometry from the gear file-----// FIXME: PROVISIONAL HASTA que se Implemente FTD en gear
-	//FIXME!!! PROVISIONAL hasta que se implemente FTD en gear
-	const gear::GearParameters & ftdgearParams = marlin::Global::GEAR->getGearParameters(this->_gearType);
+	//------Get the geometry from the gear file-----//
+	try
+	{
+		_ftdParams = const_cast<gear::FTDParameters *>( &(marlin::Global::GEAR->getFTDParameters()) );
+	}
+	catch(gear::UnknownParameterException& e)
+	{
+		std::cout << "No FTD found in gear file" << std::endl;
+		exit(-1);
+	}
 
-	_numberOfLayers  = ftdgearParams.getIntVals("DiskNumbers").size();
-	_layerZ          = ftdgearParams.getDoubleVals("FTDZCoordinate");
-	_layerRadius     = ftdgearParams.getDoubleVals("FTDInnerRadius");
-	_layerOuterRadius= ftdgearParams.getDoubleVals("FTDOuterRadius");
-	_layerRealID     = ftdgearParams.getIntVals("DiskNumbers"); //Posiblemente inecesario, a partir de FTDZCoordinatea
-	// From mm to cm
-	convertunits(_layerZ,(double)mm);
-	convertunits(_layerRadius,(double)mm);
-	convertunits(_layerOuterRadius,(double)mm);
-	//
-	_numberOfLadders= ftdgearParams.getIntVals("NumberOfLadders");
+	try
+	{
+		_ftdLayer = const_cast<gear::FTDLayerLayout *>( &_ftdParams->getFTDLayerLayout() );
+	}
+	catch(gear::UnknownParameterException  & e)
+	{
+		std::cout << "Unexpected Error! No FTDLayerLayout found in FTDParameters class" << std::endl;
+		exit(-1);
+	}
 
-	_sensorThick        = ftdgearParams.getDoubleVals("FTDDiskSiThickness");
-	_sensorPitchInZ     = std::vector<double>(_numberOfLayers,-1); // NO HAY EN Z
-	_sensorNStripsInZ   = std::vector<int>(_numberOfLayers,-1); // NO HAY EN Z
-	_sensorPitchInRPhi  = std::vector<double>(_numberOfLayers,50.0 * um); //FIXME: HARDCODED
-	_sensorWidth        = ftdgearParams.getDoubleVals("UpSensordxMax");  // x-direction
-	_sensorLength       = ftdgearParams.getDoubleVals("FTDPetalDy");     // y-direction
+	//FIXME: Data members of the SiStripGeom, this is needed ?? If SiStripGeom is the interface.. yes
+	_numberOfLayers  = _ftdLayer->getNLayers();
+	// Layers goes from 0,..., 2N-1
+	_layerZ.reserve(2*_numberOfLayers);
+	_layerRadius.reserve(2*_numberOfLayers); 
+	_layerPhi0.reserve(2*_numberOfLayers);
+	_layerPetalOpAngle.reserve(2*_numberOfLayers);
+	_layerOuterRadius.reserve(2*_numberOfLayers);
+	_sensorThick.reserve(2*_numberOfLayers);
+	_sensorWidth.reserve(2*_numberOfLayers);
+	_sensorLength.reserve(2*_numberOfLayers);
+	_layerRealID.reserve(2*_numberOfLayers);
+	_ladderOffsetZ.reserve(2*_numberOfLayers);
+	_ladderZOffsetSign0.reserve(2*_numberOfLayers);
+	_numberOfLadders.reserve(2*_numberOfLayers);
+	_ladderLength.reserve(2*_numberOfLayers);
+	for(int i = 0; i < _numberOfLayers; i++)
+	{
+		_layerZ.push_back(_ftdLayer->getZposition(i)*mm);
+		_layerRadius.push_back( _ftdLayer->getSensitiveRinner(i)*mm);
+		_layerPhi0.push_back(_ftdLayer->getPhi0(i));
+		_layerPetalOpAngle.reserve(_ftdLayer->getPhiHalfDistance(i));
+		_layerOuterRadius.push_back(_ftdLayer->getSensitiveRinner(i)+
+				_sensorLength[i]*mm);
+		_layerRealID.push_back(i+1);      
 
-	_ladderOffsetY      = ftdgearParams.getDoubleVals("SensorOffsetY");  // Ya es la mitad de 5
-	_ladderOffsetZ      = ftdgearParams.getDoubleVals("SensorThickness");
-	convertunits(_ladderOffsetY,(double)mm);
-	convertunits(_ladderOffsetZ,(double)mm);
-	convertunits(_sensorWidth,(double)mm);  
-	convertunits(_sensorThick,(double)mm);
-	convertunits(_sensorLength,(double)mm);
+		_sensorThick.push_back(_ftdLayer->getSensitiveThickness(i)*mm);
+		_sensorWidth.push_back(_ftdLayer->getSensitiveLengthMax(i)*mm);// x-direction
+		_sensorLength.push_back(_ftdLayer->getSensitiveWidth(i)*mm);   // y-direction
+		_ladderZOffsetSign0.push_back(_ftdLayer->getZoffsetSign0(i));
+		_ladderOffsetZ.push_back(_ftdLayer->getZoffset(i)*mm);
+		_numberOfLadders.push_back(_ftdLayer->getNPetals(i));
+		_ladderLength.push_back(_ftdLayer->getSupportWidth(i)*mm);
+	}
+	// Negative layers
+	const unsigned int ridsize = _layerRealID.size();
+	for(unsigned int i=0; i < ridsize; i++)
+	{
+		_layerRealID.push_back(-1*_layerRealID.at(i));
+	}
+	_layerZ.insert(_layerZ.end(),_layerZ.begin(),_layerZ.end());
+	_layerRadius.insert(_layerRadius.end(),_layerRadius.begin(),_layerRadius.end());
+	_layerPhi0.insert(_layerPhi0.end(),_layerPhi0.begin(),_layerPhi0.end());
+	_layerPetalOpAngle.insert(_layerPetalOpAngle.end(),_layerPetalOpAngle.begin(),
+			_layerPetalOpAngle.end());
+	_layerOuterRadius.insert(_layerOuterRadius.end(),_layerOuterRadius.begin(),
+			_layerOuterRadius.end());
+	_sensorThick.insert(_sensorThick.end(),_sensorThick.begin(),_sensorThick.end());
+	_sensorWidth.insert(_sensorWidth.end(),_sensorWidth.begin(),_sensorWidth.end());
+	_sensorLength.insert(_sensorLength.end(),_sensorLength.begin(),
+			_sensorLength.end());
+	_ladderOffsetZ.insert(_ladderOffsetZ.end(),_ladderOffsetZ.begin(),
+			_ladderOffsetZ.end());
+	_ladderZOffsetSign0.insert(_ladderZOffsetSign0.end(),_ladderZOffsetSign0.begin(),
+			_ladderZOffsetSign0.end());
+	_numberOfLadders.insert(_numberOfLadders.end(),_numberOfLadders.begin(),
+			_numberOfLadders.end());
+	_ladderLength.insert(_ladderLength.end(),_ladderLength.begin(),
+			_ladderLength.end());
 	
-	_ladderLength       = _sensorLength;
-	// FIXME PROVISONAL: 
-	for(unsigned int i=0; i < _ladderOffsetZ.size(); i++)
+	// FIXME: Not for the gear--> must be a processor input parameter
+	_sensorPitchInRPhi  = std::vector<double>(2*_numberOfLayers,50.0 * um); //FIXME: HARDCODED
+	_sensorPitchInZ     = std::vector<double>(2*_numberOfLayers,-1); // NO HAY EN Z
+	_sensorNStripsInZ   = std::vector<int>(2*_numberOfLayers,-1); // NO HAY EN Z
+
+	_sensorNStripsInRPhi.reserve(2*_numberOfLayers);
+	for(int i = 0; i < _numberOfLayers; i++)
 	{
-		_ladderOffsetZ[i] = _ladderOffsetZ[i]/2.0;
+		const double xminsensordown = _ftdLayer->getSensitiveLengthMin(i)*mm;
+		_sensorNStripsInRPhi[i] = _sensorNStripsInRPhi[i+7] = (int)(xminsensordown/_sensorPitchInRPhi[i])+1;
 	}
 
-	std::vector<double> xminsensordown = ftdgearParams.getDoubleVals("DownSensordxMin");
-	convertunits(xminsensordown,(double)mm);
-	for(unsigned int i = 0; i < xminsensordown.size(); i++)
-	{
-		_sensorNStripsInRPhi.push_back( (int)(xminsensordown[i]/_sensorPitchInRPhi[i])+1 );
-	}
-
-	_layerPhi0   = ftdgearParams.getDoubleVals("FTDPetalPhi0");
-	const double degree = M_PI/180.0;
-	convertunits(_layerPhi0,degree);
 }
 
-// FIXME: Provisional mientras no esten codificada la FTD, pues son funciones lentas
 std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerHit * & simHit)
 {
-	const double hitpos[3] = { *(simHit->getPosition())*mm, *(simHit->getPosition()+1)*mm,
-		*(simHit->getPosition()+2)*mm };
-	std::map<std::string,short int> cellid;
-	//Disk (layer)
-	//FIXME: Hardcoded some extreme thickness (position of the sensors)
-	double thickness = 5.0*mm;
-	for(unsigned int i = 0; i < _layerZ.size(); i++)
-	{
-		short int sign = 1;
-		if( hitpos[2] < 0.0 )
-		{
-			sign = -1;
-		}
-		double diff = sign*hitpos[2] - _layerZ[i];
-		
-		if( diff > thickness )
-		{
-			continue;
-		}
-		
-		cellid["layer"] = sign*(i); //+1); FIXME!!
-		// FIXME: Estimation!!
-		// Ladder (Petal): increasing with theta
-		const double thetahit   = atan(hitpos[1]/hitpos[0]);
-		const double thetaPetals=  2.0*M_PI/_numberOfLadders[i];
-		double idx = (thetahit-thetaPetals/2.0)/thetaPetals;
-		short int retid;
-		if( idx < 0.0 )
-		{
-			retid = int(idx) + 18;  // FIXME HARDCODED!!
-			if( idx > -1 )
-			{
-				retid = 1;
-			}
-		}
-		else
-		{
-			retid = int(idx)+1;
-		}
-		cellid["ladder"] = retid;
-		// FIXME: Estimation!!
-		// Sensor UP-DOWN and FRONT-REAR
-		// cara al IP y de arriba a abajo: 1,2,3,4
-
-		// La mitad
-		const double rhalf = _layerRadius[i]+(_layerOuterRadius[i]-_layerRadius[i])/2.0;
-		const double rhit  = sqrt(hitpos[0]*hitpos[0]+hitpos[1]*hitpos[1]);
-		// UP or DOWN
-		int idxSensor = 1; // Up- per default: multiple de 1
-		if( rhit < rhalf )
-		{
-			idxSensor = 2;  //DOwN : multiple de dos
-		}
-		// FRONT (mirando al IP) or REAR, por defecto FRONT
-		if( fabs(hitpos[2]) > _layerZ[i] )
-		{
-			idxSensor += 2;
-		}
-		cellid["sensor"] = idxSensor;
-
-
-		break;
-	}
+	// Encoded disks: 0,...,6  positives
+	//                7,...,13 negatives
+	const static int SHIFT_LAYER =0;   // DISKS
+	const static int SHIFT_LADDER=9;   // LADDER
+	const static int SHIFT_SENSOR=17;  // SENSOR
 	
-	return cellid;
+	const static unsigned int MASK_LAYER =(unsigned int)0x000001FF; 
+ 	const static unsigned int MASK_LADDER=(unsigned int)0x0001FE00;
+	const static unsigned int MASK_SENSOR=(unsigned int)0x01FE0000;
+	const static unsigned int NBITS_LAYER=(unsigned int)0x000001FF;
+
+
+	const unsigned int code = simHit->getCellID();
+
+        unsigned int layerid = (code & MASK_LAYER) >> SHIFT_LAYER;
+        unsigned int ladderid= (code & MASK_LADDER) >> SHIFT_LADDER;
+        unsigned int sensorid= (code & MASK_SENSOR) >> SHIFT_SENSOR;
+
+        // Checking the negative Z
+        if( layerid > 7 )
+        {
+                // 
+                layerid = (~layerid & NBITS_LAYER)+1;
+		layerid += 7;
+        }
+ 	
+	std::map<std::string,short int> id;
+        id["layer"] = (layerid-1);
+        id["ladder"]= ladderid-1;
+        id["sensor"]= sensorid;
+
+	return id;
 }
 
 // Added
@@ -220,102 +236,99 @@ double SiStripGeomFTD::getLadderOffsetX(const short int & layerID) const
 
 //
 // Method transforming given point from global ref. system to local ref. system
-// (parameters: layerID, ladderID, sensorID and space point in global ref. system)
+// FIXME: Description of the local reference system---
+// (parameters: diskID, petalID, sensorID and space point in global ref. system)
 //
-CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int layerID, short int ladderID, short int sensorID, const CLHEP::Hep3Vector & globalPoint)
+CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short int petalID, short int sensorID, const CLHEP::Hep3Vector & globalPoint)
 {
+//FIXME: PROV
 	// Initialize local point
 	CLHEP::Hep3Vector localPoint(globalPoint);
-std::cout << "ANtes de nada: " << localPoint << std::endl;
+
+std::cout << " transformPointToLocal: processing HIT" << std::endl;
+std::cout << " --- No processed hit-point: " << localPoint<< std::endl;
+	// Phi Angle of the Petal (on the centroid of the petal with respect the x-axis)
+	const double phi0 = _ftdLayer->getPhiPetalCd(diskID,petalID);
+std::cout << "Phi petal: " << phi0*180.0/M_PI << std::endl;
 	
-      	// Calculate rotation angles
-	double theta = 0.0; //getLadderTheta(layerID);
-	double phi   = getLadderPhi(layerID, ladderID-1);
+	//
+        // The local ref. frame (LRF') is defined positive and with
+        // the unitary vectors as
+        //    x'=direction of the electric field of the IP faced sensors 
+        //       (for all faced sensors, the global Z-axis)
+        //    y'=paralel to the Z-Strips (paralel to the smallest dimension
+        //       of the petal)
+        //    z'=paralel to the Phi-Strips (paralel to the largest dimension
+        //       of the petal)
+	// Local ref. system it is defined in a way as the X,Y,Z 
+	// of a hit is always positive in this frame. So, the 
+	// (0,0,0) in this local frame correspond to the point
+	// remaining in the the trapezoid's smallest side and
+        // in the back face w.r.t. the IP.
+        //
+	
+	// 
+	// RECALL: ftd gear have the convention mm (distance)
+	// 
 
-	// Find (0,0,0) position of local coordinate system
-	// Para mantener que siempre tengamos x,y,z positivos en el sis.ref.local del sensor
-        // utilizo el dxMax
-	//CLHEP::Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
-	double radius = getLayerRadius(layerID);
-	double zpos   = _layerZ[layerID];
-	if( sensorID < 3 )
-	{
-		zpos-= getLadderOffsetZ(layerID);
-	}
-	else
-	{
-		zpos+= getLadderOffsetZ(layerID);
-	}
-	CLHEP::Hep3Vector localOrigin(radius+getLadderOffsetX(layerID), 
-			radius+getLadderOffsetY(layerID), zpos);
-std::cout << " Origen del petalo: " << localOrigin << std::endl;
-	localOrigin.rotateZ(+phi);
-std::cout << " Origen del petalo (rotado +phi around z): " << localOrigin << std::endl;
+	// Extract the Z of the sensor (in the back face)
+	const double zsensor = _ftdLayer->getSensitiveZposition(diskID,petalID,sensorID)*mm;
+	int zsign = (int)(zsensor/fabs(zsensor));
+	const double sensorthickness = _ftdLayer->getSensitiveThickness(diskID)*mm;
+	const double zsensorback = zsensor+zsign*sensorthickness/2.0;
+	// And the X and Y CentroiD position: over the smallest side of the trapezoid
+	const double xsensorCd = (_ftdLayer->getSensitiveRinner(diskID)*mm)*cos(phi0);
+	const double ysensorCd = (_ftdLayer->getSensitiveRinner(diskID)*mm)*sin(phi0);
+std::cout << "\n --- Sensor centroid point: (" << xsensorCd << "," << ysensorCd <<
+	 "," << zsensorback << ")" ;
+std::cout << "  diskID:" << diskID << "(Real ID:" 
+	<< _layerRealID.at(diskID) << ") petalID:" << 
+	petalID << " sensorID:" << sensorID <<	std::endl;
 
-	// Perform translation - to the center of a ladder
+	// The (0,0,0) position of LFR
+	CLHEP::Hep3Vector localOrigin(xsensorCd, ysensorCd, zsensorback);
+
+	// Translating the globalPoint to the local Origin
 	localPoint -= localOrigin;
-std::cout << " Translacion (-Origen del petalo): " << localPoint << std::endl;
+
+std::cout << " --- Antes: " << localPoint;
 	
-	// Perform rotation - to the center of a ladder
-	localPoint.rotateZ(-phi);
-	localPoint.rotateY(+theta);
+	// Perform rotation to get the system local
+	localPoint.rotateZ(-zsign*phi0);
+	localPoint.rotateY(-zsign*M_PI/2.0);
+std::cout << " --- Despues: " << localPoint;
 
-std::cout << " Rotacion (-phi) :" << localPoint << std::endl;
+	// Avoiding X,Y and Z negative values--> displacing from the
+        // centroid to the edge
+        const double longtrapezoidedge = _ftdLayer->getSensitiveLengthMax(diskID)*mm;
+	localPoint += CLHEP::Hep3Vector(0.0,longtrapezoidedge/2.0,0.0); 
+std::cout << " --- TOTAL: " << localPoint;
 	
-	// Perform translation such as X, Y, Z are positive
-	//localPoint += CLHEP::Hep3Vector(+getSensorThick(layerID)/2., +getSensorWidth(layerID)/2.,
-	//		+0.5*getLadderLength(layerID) - (2*sensorID + 1)*getSensorRimWidthInZ(layerID) 
-	//		- sensorID*getSensorGapInBetween(layerID) - sensorID*getSensorLength(layerID));
-	localPoint += CLHEP::Hep3Vector(+getLadderOffsetX(layerID)/2., +getLadderLength(layerID)/2.,
-			+2.0*getSensorThick(layerID));
-std::cout << " Final, donde xyz positvas: " << localPoint<< std::endl;
-std::cout << " UN DESASTRE!!! " << localPoint<< std::endl;
-
-      	// Check if local point within sensor boundaries +- epsilon
-      if (isPointOutOfSensor(layerID, localPoint)) {
-
-         streamlog_out(ERROR) << std::setprecision(3) << "SiStripGeomFTD::transformPointToLocal - point: "
-                              << localPoint           << " is out of sensor!!!"
-                              << std::setprecision(0) << std::endl;
-         exit(0);
-      }
-   
-   // Return space point in local ref. system
-   return localPoint;
+	// Return space point in local ref. system
+	return localPoint;
 }
 
 //
 // Method transforming given vector from global ref. system to local ref. system
 // (parameters: layerID, ladderID, sensorID and vector in global ref. system)
 //
-CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int layerID, short int ladderID, const CLHEP::Hep3Vector & globalVec)
+CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short int petalID, const CLHEP::Hep3Vector & globalVec)
 {
-   // Initialize local vector
+//FIXME: PROV
+	// Initialize local vector
 	CLHEP::Hep3Vector localVec(globalVec);
 
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Perform rotation - to the center of a ladder
-      localVec.rotateZ(-phi);
-      localVec.rotateY(+theta);
-
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return vector in local ref. system
-   return localVec;
+std::cout << " VECTOR TRANS: " << localVec << " ---> ";
+	
+	const double phi0 = _ftdLayer->getPhiPetalCd(diskID,petalID);
+	// Perform rotation to get the system local
+	localVec.rotateZ(-phi0);
+	localVec.rotateY(-M_PI/2.0);
+	
+	
+	// Return vector in local ref. system
+std::cout << localVec << std::endl;
+	return localVec;
 }
 
 //

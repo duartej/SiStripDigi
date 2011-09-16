@@ -10,10 +10,14 @@
 #include "SiStripGeom.h"
 
 // Include Gear header files
-//#include <gear/GearParameters.h>
+#include "gear/FTDParameters.h"
+#include "gear/FTDLayerLayout.h"
 
 // Include LCIO stuff
 #include "EVENT/SimTrackerHit.h"
+
+//class gear::FTDParameters;
+//class gear::FTDLayerLayout;
 
 namespace sistrip 
 {
@@ -31,7 +35,7 @@ namespace sistrip
 //!
 //! @author Z. Drasal, Charles University Prague
 //!
-//! Thu Jul 14 (J. Duarte)
+//! Thu Jul 14 (J. Duarte Campderros)
 //! Converted to abstract class used by the builder to construct the 
 //! different subdetectors which going to use silicon strips (FTD,SIT,..)
 
@@ -98,10 +102,14 @@ class SiStripGeomFTD: public SiStripGeom
 		virtual void printSensorParams(short int layerID) const;
 
 	private:
+		gear::FTDParameters * _ftdParams;
+		gear::FTDLayerLayout * _ftdLayer;
 		//FIXME PROVISIONAL?
 		double getLadderOffsetX(const short int & layerID) const;
 
-		std::vector<double> _layerOuterRadius; //Maybe innecesary when gear FTD will be implemented
+		std::vector<double> _layerOuterRadius;
+		std::vector<double> _layerPetalOpAngle;
+		std::vector<double> _ladderZOffsetSign0;
 	
 }; // Class
 

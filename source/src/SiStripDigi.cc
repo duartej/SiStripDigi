@@ -63,6 +63,11 @@ SiStripDigi::SiStripDigi() : Processor("SiStripDigi")
 // Processor parameters
 
    // Define compulsory parameters
+   //NEW -----
+   registerProcessorParameter( "Subdetector",
+			                      "Subdetector to be digitised",
+			                      _subdetector,
+			                      std::string("FTD") );
    registerProcessorParameter( "DeplVoltage",
 			                      "Depletion voltage of a silicon strip detector, set in volts",
 			                      _Vdepl,
@@ -205,12 +210,12 @@ void SiStripDigi::init()
 
 
 // Get geometry parameters from Gear xml file
-   _geometry = SiStripGeomBuilder::Build("FTD"); // FIXME: Provisional para compilacion
-	_geometry -> initGearParams();
-//	_geometry -> printGearParams();  FIXME
+   _geometry = SiStripGeomBuilder::Build(_subdetector);
+   _geometry->initGearParams();
+   //	_geometry -> printGearParams();  FIXME
 
 // Initialize random generator (engine, mean, sigma)
-	_genGauss = new RandGauss(new RandEngine(SEED), 0., (double)_elNoise);
+   _genGauss = new RandGauss(new RandEngine(SEED), 0., (double)_elNoise);
 
 // Print set parameters
    printProcessorParams();
@@ -229,8 +234,8 @@ void SiStripDigi::init()
 
    _rootFile->cd("");
 
-   _rootELossG4      = new TH1F("ELossG4"     , "G4 - Energy loss in silicon"  , 400, 0., 400.);
-   _rootELossDigi    = new TH1F("ELossDigi"   , "Digi - Energy loss in silicon", 400, 0., 400.);
+   _rootELossG4   = new TH1F("ELossG4"     , "G4 - Energy loss in silicon"  , 400, 0., 400.);
+   _rootELossDigi = new TH1F("ELossDigi"   , "Digi - Energy loss in silicon", 400, 0., 400.);
 #endif
 
 }
@@ -406,6 +411,12 @@ void SiStripDigi::processEvent(LCEvent * event)
 				hitLadderID = _geometry->cellIDDecProv(simHit)["ladder"];
 				hitSensorID = _geometry->cellIDDecProv(simHit)["sensor"];
 			}
+			//DEBUG
+			if( abs(_geometry->getLayerRealID(hitLayerID)) < 3 )
+			{
+				continue;
+			}
+			//END-DEBUG
 			int  hitCellID   = _geometry->encodeCellID(hitLayerID, hitLadderID, hitSensorID);
 			// MC information
 			MCParticle * mcPart = simHit->getMCParticle();
@@ -437,21 +448,21 @@ void SiStripDigi::processEvent(LCEvent * event)
 			// Set magnetic field
 			_magField        = _geometry->get3MagField();
 			
-			/*std::cout << " hitCellID= " << hitCellID;
+			std::cout << " hitCellID= " << hitCellID;
 			  std::cout << " Layer= " << _currentLayerID;
 			  std::cout << " Petal= " << _currentLadderID;
 			  std::cout << " Sensor=" << _currentSensorID << std::endl;
 			  std::cout << " sensorThick=" << _sensorThick;
-			  std::cout << " Magnetic Field=" << _magField << std::endl;*/
+			  std::cout << " Magnetic Field=" << _magField/T << std::endl;
 			// Transform hit to local ref. system of a sensor
 			transformSimHit(simDigiHit);
-
-	      // Transform magnetic field to local ref. system of a sensor
-	      _magField = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, _magField);
-
-	      // Digitize the given hit and get sensor map of strips with total integrated charge
-	      // and time when a particle crossed the sensor
-	      digitize(simDigiHit, sensorMap);
+			
+			// Transform magnetic field to local ref. system of a sensor
+			_magField = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, _magField);
+	
+			// Digitize the given hit and get sensor map of strips with total integrated charge
+			// and time when a particle crossed the sensor
+			digitize(simDigiHit, sensorMap);
 
 	      // Unset actual sensor parameters
 	      _currentLayerID      = 0;
@@ -711,36 +722,38 @@ void SiStripDigi::end()
 //
 void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap & sensorMap)
 {
-//
-// Calculate electron, resp. hole, clusters from obtained hits & provide Landau fluctuations
-   DigiClusterVec eClusterVec;
-   DigiClusterVec hClusterVec;
+	//
+	// Calculate electron, resp. hole, clusters from obtained hits & provide Landau fluctuations
+	DigiClusterVec eClusterVec;
+	DigiClusterVec hClusterVec;
 
-   calcClusters(simDigiHit, eClusterVec, hClusterVec);
-
-//
-// Go through all e, resp. h, clusters, perform drift, diffusion and Lorentz shift
-   DigiClusterVec::iterator iterVec;
-
-   // Cluster - total diffusion - sigma
-   double diffSigma = 0.;
-
-   // Cluster - Lorentz shift
-   Hep3Vector shiftLorentz(0.,0.,0.);
-
-   // Cluster - total drift time
-   double driftTime = 0.;
-
-   // Cluster - charge collected by a strip
-   double chargeCollect = 0.;
-
-   // Electron clusters
-   for( iterVec=eClusterVec.begin(); iterVec!=eClusterVec.end(); iterVec++ ) {
-
+	calcClusters(simDigiHit, eClusterVec, hClusterVec);
+	
+	//
+	// Go through all e, resp. h, clusters, perform drift, diffusion and Lorentz shift
+	DigiClusterVec::iterator iterVec;
+	
+	// Cluster - total diffusion - sigma
+	double diffSigma = 0.;
+	
+	// Cluster - Lorentz shift
+	Hep3Vector shiftLorentz(0.,0.,0.);
+	
+	// Cluster - total drift time
+	double driftTime = 0.;
+	
+	// Cluster - charge collected by a strip
+	double chargeCollect = 0.;
+	
+	// Electron clusters
+	for( iterVec=eClusterVec.begin(); iterVec!=eClusterVec.end(); iterVec++ ) 
+	{
 		DigiCluster * cluster = (*iterVec);
 
-		// Calculate charge collected by a strip in Z or R-Phi (using Shockley-Ramo theorem: dQe = |qClusterE * (d - x) / d|)
-		//chargeCollect = cluster->getNCarriers() * (_sensorThick - cluster->getPosX())/_sensorThick * fC; // Presume that R-Phi strips collect only electrons
+		// Calculate charge collected by a strip in Z or R-Phi 
+		// (using Shockley-Ramo theorem: dQe = |qClusterE * (d - x) / d|)
+		//chargeCollect = cluster->getNCarriers() * (_sensorThick - cluster->getPosX())/_sensorThick * fC;
+		// Presume that R-Phi strips collect only electrons
 		chargeCollect = cluster->getNCarriers() * e;
 
 		// Calculate drift time
@@ -759,99 +772,100 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 
 		//std::cout << "Electron - DriftTime: " << driftTime/ns << " DiffSigma: " << diffSigma/um << " LorentzShift: " << shiftLorentz/um << " " << std::endl;
 
-      //
-      // Add diffusion effect and save results as signals (IN R-PHI)
-      //
+		//
+		// Add diffusion effect and save results as signals (IN R-PHI)
+		//
+		
+		//  Calculate min and max strip in R-Phi, collecting charge, (3 sigma limit)
+		int iMinStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() - 3*diffSigma),
+				cluster->getPosZ() );
+		int iMaxStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() + 3*diffSigma),
+				cluster->getPosZ() );
+		double sensorPitchInRPhi = _geometry->getSensorPitchInRPhi( _currentLayerID  , cluster->getPosZ() ); // ????
 
-      //  Calculate min and max strip in R-Phi, collecting charge, (3 sigma limit)
-      int iMinStripInRPhi      = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() - 3*diffSigma), cluster->getPosZ() );
-      int iMaxStripInRPhi      = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() + 3*diffSigma), cluster->getPosZ() );
-      double sensorPitchInRPhi = _geometry->getSensorPitchInRPhi( _currentLayerID  , cluster->getPosZ() );
+		//  Gauss distr. - primitive function: from A to B
+		double mean       = cluster->getPosY();
+		double sigmaSqrt2 = diffSigma * sqrt(2.);
+		double primAtA    = 0.5*( 1. + erf( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) );
+		double primAtB    = 0.;
 
-      //  Gauss distr. - primitive function: from A to B
-      double mean       = cluster->getPosY();
-      double sigmaSqrt2 = diffSigma * sqrt(2.);
-      double primAtA    = 0.5*( 1. + erf( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) );
-      double primAtB    = 0.;
 
-      //  Sensor map of strips with total integrated charge and time when particle crossed the detector
-      SensorStripMap::iterator iterSMap;
-      StripChargeMap::iterator iterChMap;
+		//  Sensor map of strips with total integrated charge and time when particle crossed the detector
+		SensorStripMap::iterator iterSMap;
+		StripChargeMap::iterator iterChMap;
+		
+		//  Strip signal
+		Signal * signal = 0;
 
-      //  Strip signal
-      Signal * signal = 0;
-
-      //  Calculate signal at each strip and save
-      for (int i=iMinStripInRPhi; i<=iMaxStripInRPhi; i++) {
-
-         // Charge collected by a strip i
-         double charge = 0.;
-
-         // Gauss distr. - prim. function at B
-         primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitchInRPhi - mean)/sigmaSqrt2) );
-
-         // Integration result
-         charge = (primAtB - primAtA) * chargeCollect;
-
-         // New integration starting point
-         primAtA = primAtB;
-
-         // Find sensor with given ID (cellID)
-         iterSMap = sensorMap.find(cluster->getCellID());
-
-         // Sensor has already collected some charge
-         if (iterSMap != sensorMap.end() ) {
-
-            // Find strip i in R-Phi
-            iterChMap = iterSMap->second[STRIPRPHI].find(i);
-
-            // Strip i in R-Phi has already collected some charge
-            if (iterChMap != iterSMap->second[STRIPRPHI].end()) {
-
-               // Get signal at strip i
-               signal = iterChMap->second;
-
-               // Update signal information (add current charge to the total)
-               signal->updateCharge(charge);
-
-               // Update MC truth information
-               signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-
-            }
-            // Strip i in R-Phi hasn't collected any charge yet
-            else {
-
-               // Create signal, i.e. total charge + time when particle crossed the detector,
-               // all corresponding to strip i
-               signal = new Signal(charge, cluster->getTime());
-
-               // Save MC truth information
-               signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-
-               // Save information about strip i in R-Phi
-               iterSMap->second[STRIPRPHI][i] = signal;
-
-            }
-         }
-         // Sensor has not collected any charge yet
-         else {
-
-            // Create map of strips
-            StripChargeMap * stripMap = new StripChargeMap[2];
-
-            // Create signal, i.e. total charge + time when particle crossed the detector,
-            // all corresponding to strip i
-            signal = new Signal(charge, cluster->getTime());
-
-            // Save MC truth information
-            signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-
-            // Save information about strip i in R-Phi
-            stripMap[STRIPRPHI][i]          = signal;
-            sensorMap[cluster->getCellID()] = stripMap;
-         }
-
-      } // Calculate signal at each strip
+		//  Calculate signal at each strip and save
+		for (int i=iMinStripInRPhi; i<=iMaxStripInRPhi; i++) 
+		{
+			// Charge collected by a strip i
+			double charge = 0.;
+			
+			// Gauss distr. - prim. function at B
+			primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitchInRPhi - mean)/sigmaSqrt2) );
+			
+			// Integration result
+			charge = (primAtB - primAtA) * chargeCollect;
+			
+			// New integration starting point
+			primAtA = primAtB;
+			
+			// Find sensor with given ID (cellID)
+			iterSMap = sensorMap.find(cluster->getCellID());
+			
+			// Sensor has already collected some charge
+			if( iterSMap != sensorMap.end() ) 
+			{
+				// Find strip i in R-Phi
+				iterChMap = iterSMap->second[STRIPRPHI].find(i);
+				
+				// Strip i in R-Phi has already collected some charge
+				if(iterChMap != iterSMap->second[STRIPRPHI].end()) 
+				{
+					// Get signal at strip i
+					signal = iterChMap->second;
+					
+					// Update signal information (add current charge to the total)
+					signal->updateCharge(charge);
+					
+					// Update MC truth information
+					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+				}
+				// Strip i in R-Phi hasn't collected any charge yet
+				else 
+				{
+					// Create signal, i.e. total charge + time when particle crossed the detector,
+					// all corresponding to strip i
+					signal = new Signal(charge, cluster->getTime());
+					
+					// Save MC truth information
+					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+					
+					// Save information about strip i in R-Phi
+					iterSMap->second[STRIPRPHI][i] = signal;
+				}
+			}
+			// Sensor has not collected any charge yet
+			else 
+			{
+				// Create map of strips
+				StripChargeMap * stripMap = new StripChargeMap[2];
+				
+				// Create signal, i.e. total charge + time when particle crossed the detector,
+				// all corresponding to strip i
+				signal = new Signal(charge, cluster->getTime());
+				
+				// Save MC truth information
+				signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+				
+				// Save information about strip i in R-Phi
+				stripMap[STRIPRPHI][i]          = signal;
+				sensorMap[cluster->getCellID()] = stripMap;
+			}
+			
+		} // Calculate signal at each strip
 
       //
       // Add diffusion effect and save results as signals (IN Z)
@@ -943,28 +957,28 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 			}
 
 		} // Calculate signal at each strip
-*/
+	*/
 		// Release memory
 		delete cluster;
-		cluster = 0;
+	cluster = 0;
+	
+	} // For electrons
 
-   } // For electrons
-
-   eClusterVec.clear();
-
-   // Hole clusters
-	for( iterVec=hClusterVec.begin(); iterVec!=hClusterVec.end(); iterVec++ ) {
-
+	eClusterVec.clear();
+	
+	// Hole clusters
+	for( iterVec=hClusterVec.begin(); iterVec!=hClusterVec.end(); iterVec++ ) 
+	{
 		DigiCluster * cluster = (*iterVec);
-
+		
 		// Calculate charge collected by a strip (using Shockley-Ramo theorem dQh = |qClusterH * x / d|)
 		//chargeCollect = cluster->getNCarriers() * (cluster->getPosX())/_sensorThick * fC; // Presume that Z strips collect only holes
 		chargeCollect = cluster->getNCarriers() * e;
-
+		
 		// Calculate drift time
 		driftTime = getHoleDriftTime(cluster->getPosX());
 		cluster->setDriftTime(driftTime);
-
+		
 		// Calculate mean diffusivity and then diffusion sigma
 		diffSigma  = getHoleDiffusivity(cluster->getPosX()/2.);
 		diffSigma *= 2 * driftTime;
@@ -975,105 +989,105 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		cluster->set3Position( shiftLorentz + Hep3Vector(0., cluster->getPosY(),cluster->getPosZ()) );
 
 		//std::cout << "Hole - DriftTime: " << driftTime/ns << " DiffSigma: " << diffSigma/um << " LorentzShift: " << shiftLorentz/um << " " << std::endl; ;
-
-      //
-      // Add diffusion effect and save results as signals (IN Z)
-      //
-
-      //  Min and max strip, collecting charge, (3 sigma limit)
-      int iMinStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(), (cluster->getPosZ() - 3*diffSigma) );
-      int iMaxStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(), (cluster->getPosZ() + 3*diffSigma) );
-      double sensorPitchInZ = _geometry->getSensorPitchInZ( _currentLayerID );
-
-      //  Gauss distr. - primitive function: from A to B
-      double mean       = cluster->getPosZ();
-      double sigmaSqrt2 = diffSigma * sqrt(2.);
-      double primAtA    = 0.5*( 1. + erf( (iMinStripInZ*sensorPitchInZ - mean)/sigmaSqrt2) );
-      double primAtB    = 0.;
-
-      //  Sensor map of strips with total integrated charge and time when particle crossed the detector
-      SensorStripMap::iterator iterSMap;
-      StripChargeMap::iterator iterChMap;
-
-      //  Strip signal
-      Signal * signal = 0;
-
-      //  Calculate signal at each strip and save
-      for (int i=iMinStripInZ; i<=iMaxStripInZ; i++) {
-
-         // Charge collected by a strip i
-         double charge = 0.;
-
-         // Gauss distr. - prim. function at B
-         primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitchInZ - mean)/sigmaSqrt2) );
-
-         // Integration result
-         charge = (primAtB - primAtA) * chargeCollect;
-
-         // New integration starting point
-         primAtA = primAtB;
-
-         // Find sensor with given ID
-         iterSMap = sensorMap.find(cluster->getCellID());
-
-         // Sensor has already collected some charge
-         if (iterSMap != sensorMap.end() ) {
-
-            // Find strip i in Z
-            iterChMap = iterSMap->second[STRIPZ].find(i);
-
-            // Strip i in Z has already collected some charge
-            if (iterChMap != iterSMap->second[STRIPZ].end()) {
-
-               // Get signal at strip i
-               signal = iterChMap->second;
-
-               // Update signal information (add current charge to the total)
-               signal->updateCharge(charge);
-
-               // Update MC truth information
-               signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-
-            }
-            // Strip i in Z hasn't collected any charge yet
-            else {
-
-               // Create signal, i.e. total charge + time when particle crossed the detector,
-               // all corresponding to strip i
-               signal = new Signal(charge, cluster->getTime());
-
-               // Save MC truth information
-               signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-
-               // Save information about strip i in Z
-               iterSMap->second[STRIPZ][i] = signal;
-
-            }
-         }
-         // Sensor has not collected any charge yet
-         else {
-
-            // Create map of strips with total collected charge
-            StripChargeMap * stripMap = new StripChargeMap[2];
-
-            // Create signal, i.e. total charge + time when particle crossed the detector,
-            // all corresponding to strip i
-            signal = new Signal(charge, cluster->getTime());
-
-            // Save MC truth information
-            signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-
-            // Save information about strip i in Z
-            stripMap[STRIPZ][i] = signal;
-            sensorMap[cluster->getCellID()] = stripMap;
-         }
-
-      } // Calculate signal at each strip
-
-      //
-      // Add diffusion effect and save results as signals (IN R-PHI)
-      //
-/* Presume that R-Phi strips collect only electrons
+		
+		//
+		// Add diffusion effect and save results as signals (IN Z)
+		//
+		
+		//  Min and max strip, collecting charge, (3 sigma limit)
+		int iMinStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(), (cluster->getPosZ() - 3*diffSigma) );
+		int iMaxStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(), (cluster->getPosZ() + 3*diffSigma) );
+		double sensorPitchInZ = _geometry->getSensorPitchInZ( _currentLayerID );
+		
+		//  Gauss distr. - primitive function: from A to B
+		double mean       = cluster->getPosZ();
+		double sigmaSqrt2 = diffSigma * sqrt(2.);
+		double primAtA    = 0.5*( 1. + erf( (iMinStripInZ*sensorPitchInZ - mean)/sigmaSqrt2) );
+		double primAtB    = 0.;
+		
+		//  Sensor map of strips with total integrated charge and time when particle crossed the detector
+		SensorStripMap::iterator iterSMap;
+		StripChargeMap::iterator iterChMap;
+		
+		//  Strip signal
+		Signal * signal = 0;
+		
+		//  Calculate signal at each strip and save
+		for (int i=iMinStripInZ; i<=iMaxStripInZ; i++) 
+		{
+			// Charge collected by a strip i
+			double charge = 0.;
+			
+			// Gauss distr. - prim. function at B
+			primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitchInZ - mean)/sigmaSqrt2) );
+			
+			// Integration result
+			charge = (primAtB - primAtA) * chargeCollect;
+			
+			// New integration starting point
+			primAtA = primAtB;
+			
+			// Find sensor with given ID
+			iterSMap = sensorMap.find(cluster->getCellID());
+			
+			// Sensor has already collected some charge
+			if (iterSMap != sensorMap.end() ) 
+			{
+				// Find strip i in Z
+				iterChMap = iterSMap->second[STRIPZ].find(i);
+				
+				// Strip i in Z has already collected some charge
+				if (iterChMap != iterSMap->second[STRIPZ].end()) 
+				{
+					// Get signal at strip i
+					signal = iterChMap->second;
+					
+					// Update signal information (add current charge to the total)
+					signal->updateCharge(charge);
+					
+					// Update MC truth information
+					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+					
+				}
+				// Strip i in Z hasn't collected any charge yet
+				else 
+				{
+					// Create signal, i.e. total charge + time when particle crossed the detector,
+					// all corresponding to strip i
+					signal = new Signal(charge, cluster->getTime());
+					
+					// Save MC truth information
+					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+					
+					// Save information about strip i in Z
+					iterSMap->second[STRIPZ][i] = signal;
+					
+				}
+			}
+			// Sensor has not collected any charge yet
+			else 
+			{
+				// Create map of strips with total collected charge
+				StripChargeMap * stripMap = new StripChargeMap[2];
+				
+				// Create signal, i.e. total charge + time when particle crossed the detector,
+				// all corresponding to strip i
+				signal = new Signal(charge, cluster->getTime());
+				
+				// Save MC truth information
+				signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+				
+				// Save information about strip i in Z
+				stripMap[STRIPZ][i] = signal;
+				sensorMap[cluster->getCellID()] = stripMap;
+			}
+			
+		} // Calculate signal at each strip
+		
+		//
+		// Add diffusion effect and save results as signals (IN R-PHI)
+		//
+		/* Presume that R-Phi strips collect only electrons
 		//  Min and max strip, collecting charge, (3 sigma limit)
 		int iMinStripInRPhi      = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() - 3*diffSigma) );
 		int iMaxStripInRPhi      = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() + 3*diffSigma) );
@@ -1161,14 +1175,12 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 
 		} // Calculate signal at each strip
 */
-      // Release memory
-		delete cluster;
-		cluster = 0;
-
-   }	// For holes
+	// Release memory
+	delete cluster;
+        cluster = 0;
+	}	// For holes
 
 	hClusterVec.clear();
-
 }
 
 // OTHER METHODS
@@ -1180,79 +1192,99 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 //
 void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & eClusterVec, DigiClusterVec & hClusterVec)
 {
-   DigiCluster * eCluster  = 0;
-   DigiCluster * hCluster  = 0;
-
-   // Calculate the number of clusters (each cluster sits in the middle of a substep,
-   // where the substep increases precision of a step and corresponds to space precision)
-   int nClusters = 0;
-   int nSubSteps = (hit->getStepSize())/_epsSpace;
-
-   if( (((hit->getStepSize()) - nSubSteps*_epsSpace) >= (0.5 * _epsSpace)) ||
-        ((hit->getStepSize()) < _epsSpace) ) nClusters = nSubSteps + 1;
-   else nClusters = nSubSteps;
-
-   // Calculate cluster step
-   Hep3Vector clusterStep = hit->get3Step()/(nClusters);
-
-   // Calculate variables relevant for Landau fluctuations - info about MC particle
-   MCParticle * mcPart        = dynamic_cast<MCParticle *>(hit->getMCParticle());
-   double partMomMag          = double(hit->get3Momentum().mag());
-   double partMass            = 0.;
-   double betaGamma           = 0.;
-   if (mcPart!=0) partMass    = hit->getMCParticle()->getMass()*GeV;
-   if (mcPart!=0 && partMass!=0.) betaGamma = partMomMag / partMass;
-   double clusterStepSize     = clusterStep.mag();
-
-#ifdef ROOT_OUTPUT_LAND
-
-   // Update info
-   _rootDepEG4 += hit->getdEdx();
-#endif
-
-   // Decide if particle is low-energy --> Geant 4 Landau fluctuations used in low energy regime
-   bool lowEnergyPart                               = false;
-   if (betaGamma<_landauBetaGammaCut) lowEnergyPart = true;
-
-   // Create elec-clusters and hole-clusters
-   for (int i = 0; i<nClusters; i++) {
-
-      // Landau fluctuated deposited energy
-      double eLoss = 0.;
-
-      // High energy regime --> use internal Landau fluctuation (if defined)
-      if(_landauFluct && !lowEnergyPart && mcPart!=0) eLoss = _fluctuate->SampleFluctuations(mcPart, clusterStepSize);
-
-      // Low energy regime --> use Geant4 info and distribute it uniformly
-      else eLoss = hit->getdEdx()/nClusters;
+	DigiCluster * eCluster  = 0;
+	DigiCluster * hCluster  = 0;
+	
+	// Calculate the number of clusters (each cluster sits in the middle of a substep,
+	// where the substep increases precision of a step and corresponds to space precision)
+	int nClusters = 0;
+	int nSubSteps = (hit->getStepSize())/_epsSpace;
+	
+	if( (((hit->getStepSize()) - nSubSteps*_epsSpace) >= (0.5 * _epsSpace)) ||
+			((hit->getStepSize()) < _epsSpace) ) 
+	{
+		nClusters = nSubSteps + 1;
+	}
+	else
+	{
+		nClusters = nSubSteps;
+	}
+	
+	// Calculate cluster step
+	Hep3Vector clusterStep = hit->get3Step()/(nClusters);
+	
+	// Calculate variables relevant for Landau fluctuations - info about MC particle
+	MCParticle * mcPart        = dynamic_cast<MCParticle *>(hit->getMCParticle());
+	double partMomMag          = double(hit->get3Momentum().mag());
+	double partMass            = 0.;
+	double betaGamma           = 0.;
+	if( mcPart!=0 )
+	{
+		partMass    = hit->getMCParticle()->getMass()*GeV;
+	}
+	if(mcPart!=0 && partMass!=0.)
+	{
+		betaGamma = partMomMag / partMass;
+	}
+	
+	double clusterStepSize     = clusterStep.mag();
 
 #ifdef ROOT_OUTPUT_LAND
-
-      // Update info
-      _rootDepEDigi += eLoss;
+	
+	// Update info
+	_rootDepEG4 += hit->getdEdx();
 #endif
+	// Decide if particle is low-energy --> Geant 4 Landau fluctuations used in low energy regime
+	bool lowEnergyPart = false;
 
-      // Electron clusters
-      eCluster = new DigiCluster(-1, hit->getTime(), eLoss,
-                                 hit->get3PrePosition() + (i+0.5)*clusterStep,
-      	                        hit->getLayerID()   , hit->getLadderID(),
-      	                        hit->getSensorID()  , hit->getCellID(),
-      	                        hit->getMCParticle(), hit->getSimTrackerHit());
-      eClusterVec.push_back(eCluster);
+	if(betaGamma<_landauBetaGammaCut) 
+	{
+		lowEnergyPart = true;
+	}
+	
+	// Create elec-clusters and hole-clusters
+	for(int i = 0; i<nClusters; i++) 
+	{
+		// Landau fluctuated deposited energy
+		double eLoss = 0.;
+		
+		// High energy regime --> use internal Landau fluctuation (if defined)
+		if(_landauFluct && !lowEnergyPart && mcPart!=0) 
+		{
+			eLoss = _fluctuate->SampleFluctuations(mcPart, clusterStepSize);
+		}
+		// Low energy regime --> use Geant4 info and distribute it uniformly
+		else
+		{
+			eLoss = hit->getdEdx()/nClusters;
+		}
 
-      // Hole clusters
-      hCluster = new DigiCluster(+1, hit->getTime(), eLoss,
-     		                        hit->get3PrePosition() + (i+0.5)*clusterStep,
-     		                        hit->getLayerID()   , hit->getLadderID(),
-     		                        hit->getSensorID()  , hit->getCellID(),
-     		                        hit->getMCParticle(), hit->getSimTrackerHit());
-      hClusterVec.push_back(hCluster);
-   }
-
-   // Print detailed info about clusters
-   printClustersInfo("Electron clusters in local ref. system", eClusterVec);
-   printClustersInfo("Hole clusters in local ref. system", hClusterVec);
-   streamlog_out(MESSAGE2) << std::endl;
+#ifdef ROOT_OUTPUT_LAND
+		
+		// Update info
+		_rootDepEDigi += eLoss;
+#endif
+		
+		// Electron clusters
+		eCluster = new DigiCluster(-1, hit->getTime(), eLoss,
+				hit->get3PrePosition() + (i+0.5)*clusterStep,
+				hit->getLayerID()   , hit->getLadderID(),
+				hit->getSensorID()  , hit->getCellID(),
+				hit->getMCParticle(), hit->getSimTrackerHit());
+		eClusterVec.push_back(eCluster);
+		
+		// Hole clusters
+		hCluster = new DigiCluster(+1, hit->getTime(), eLoss,
+				hit->get3PrePosition() + (i+0.5)*clusterStep,
+				hit->getLayerID()   , hit->getLadderID(),
+				hit->getSensorID()  , hit->getCellID(),
+				hit->getMCParticle(), hit->getSimTrackerHit());
+		hClusterVec.push_back(hCluster);
+	}
+	// Print detailed info about clusters
+	printClustersInfo("Electron clusters in local ref. system", eClusterVec);
+	printClustersInfo("Hole clusters in local ref. system", hClusterVec);
+	streamlog_out(MESSAGE2) << std::endl;
 }
 
 
@@ -1612,7 +1644,7 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 				<< std::setprecision(2)
 				<< std::endl                                    << "    Local B field: "
 				<< _magField/T                                  << " T"
-				<< std::setprecision(0)
+				<< std::setprecision(0) 
 				<< std::endl;
 	
 	_geometry -> printSensorParams(_currentLayerID);
@@ -1624,18 +1656,24 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	Hep3Vector globPrePosition = simDigiHit->get3PrePosition();
 	Hep3Vector globPosPosition = simDigiHit->get3PosPosition();
 	Hep3Vector globMomentum    = simDigiHit->get3Momentum();
-	
 	// Hit local preStep, resp. posStep, positiona and momentum
 	Hep3Vector locPrePosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPrePosition);
-std::cout << "Loc Pre Position: " << locPrePosition << std::endl;
-	Hep3Vector locPosPosition = _geometry->transformPointToLocal(_currentLayerID, _currentLadderID, _currentSensorID, globPosPosition);
-std::cout << "Loc Post Position: " << locPosPosition << std::endl;
+//std::cout << "Loc Pre Position: " << locPrePosition << std::endl;
+	Hep3Vector locPosPosition = _geometry->transformPointToLocal(_currentLayerID, 
+			_currentLadderID, _currentSensorID, globPosPosition);
+//std::cout << "Loc Post Position: " << locPosPosition << std::endl;
 	Hep3Vector locMomentum    = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, globMomentum);
-
-   // Avoid preStep rounding errors in z
-   if (locPrePosition.getX() < 0.) {
-   	if (locPrePosition.getX() >= -ROUNDEPS*um) locPrePosition.setX(0.);
+	
+	// Avoid preStep rounding errors in z
+	//---> He definido el sistema de referencia local de tal forma que X e Y siempre son
+	// positivos. Por el momento, mi sistema de referencia de interes es global aunque utilizo
+	// coordenadas cilindricas (de todas formas puedo utilizar un SR local)
+/*	if (locPrePosition.getX() < 0.)  // OJO Quita el fabs!!
+	{
+		if (locPrePosition.getX() >= -ROUNDEPS*um) 
+		{
+			locPrePosition.setX(0.);
 
    	else {
 
@@ -1681,7 +1719,7 @@ std::cout << "Loc Post Position: " << locPosPosition << std::endl;
      		   	               << std::endl;
         	exit(0);
       }
-   }
+   }*/
 
    // Save hit local preStep, resp. posStep, position and momentum
    simDigiHit->set3PrePosition( locPrePosition );
@@ -1724,19 +1762,25 @@ double SiStripDigi::getHoleDiffusivity(double pos)
 double SiStripDigi::getElecDriftTime(double pos)
 {
 	// Set pointer to velocity function and create instance of IntSolver
-   double (SiStripDigi::* pfce)(double) = &SiStripDigi::getElecInvVelocity;
-   RombIntSolver<SiStripDigi> elecIntSolver(pfce, this, _epsTime);
-
-   if (pos>_sensorThick) {
-      streamlog_out(ERROR) << "Problem to calculate total drift time. Electrons at position: "
-		            		   << pos << " are out of range!"
-		            		   << std::endl;
-      exit(0);
-   }
-
-   // Result (Be carefull about rounding errors)
-   if ((_sensorThick - pos) <= ROUNDEPS*um) return 0.;
-   else return (elecIntSolver.Integrate(pos, _sensorThick));
+	double (SiStripDigi::* pfce)(double) = &SiStripDigi::getElecInvVelocity;
+	RombIntSolver<SiStripDigi> elecIntSolver(pfce, this, _epsTime);
+	
+	if (pos>_sensorThick) 
+	{
+		streamlog_out(ERROR) << "Problem to calculate total drift time. Electrons at position: "
+		            		   << pos << " are out of range!" << std::endl;
+		exit(0);
+	}
+	
+	// Result (Be carefull about rounding errors)
+	if((_sensorThick - pos) <= ROUNDEPS*um)
+	{
+		return 0.;
+	}
+	else
+	{
+		return (elecIntSolver.Integrate(pos, _sensorThick));
+	}
 }
 
 //
@@ -1765,16 +1809,16 @@ double SiStripDigi::getHoleDriftTime(double pos)
 //
 double SiStripDigi::getEField(double pos)
 {
-   // Si wafer thickness in cm
-   if (pos<0 || pos>_sensorThick) {
-      streamlog_out(ERROR) << "Electric field at required position: " << pos
-		            			<< " not defined!"
-		            			<< std::endl;
-      exit(0);
-   }
-
-   // Return electric intensity
-   return ( -(_Vbias+_Vdepl)/_sensorThick + 2*pos/(_sensorThick*_sensorThick)*_Vdepl );
+	// Si wafer thickness in cm
+	if (pos<0 || pos>_sensorThick) 
+	{
+		streamlog_out(ERROR) << "Electric field at required position: " << pos
+			<< " not defined!" << std::endl;
+		exit(0);
+	}
+	
+	// Return electric intensity 
+	return ( -(_Vbias+_Vdepl)/_sensorThick + 2*pos/(_sensorThick*_sensorThick)*_Vdepl );
 }
 
 //

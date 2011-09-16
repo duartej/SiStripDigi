@@ -83,6 +83,7 @@
 #include <vector>
 #include <queue>
 #include <map>
+#include<string>
 
 // Include CLHEP header files
 #include <CLHEP/Random/RandGauss.h>
@@ -383,6 +384,7 @@ class SiStripDigi : public marlin::Processor {
    std::string _relColNamePlsToSim;//!< LCIO relation collection name - TrkPulse (Digit)  <-> SimTrkHit
 
 // Digitization parameters - set by users
+   std::string _subdetector;
    float _Vdepl;                   //!< Sensor depletion voltage in volts
    float _Vbias;                   //!< Sensor bias voltage in volts
    float _temp;                    //!< Sensor temperature in Kelvins

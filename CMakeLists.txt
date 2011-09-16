@@ -25,6 +25,8 @@ SET( ${PROJECT_NAME}_PATCH_LEVEL 3 )
 
 
 ADD_DEFINITIONS( -DROOT_OUTPUT_LAND )
+# El puto gear, lo necesita marlin/Global.h)
+ADD_DEFINITIONS( -DUSE_GEAR )
 ### SETTINGS ################################################################
 
 # Project options
