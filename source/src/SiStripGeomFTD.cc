@@ -111,6 +111,7 @@ void SiStripGeomFTD::initGearParams()
 	//FIXME: Data members of the SiStripGeom, this is needed ?? If SiStripGeom is the interface.. yes
 	_numberOfLayers  = _ftdLayer->getNLayers();
 	// Layers goes from 0,..., 2N-1
+	_layerType.reserve(2*_numberOfLayers);
 	_layerZ.reserve(2*_numberOfLayers);
 	_layerRadius.reserve(2*_numberOfLayers); 
 	_layerPhi0.reserve(2*_numberOfLayers);
@@ -118,6 +119,7 @@ void SiStripGeomFTD::initGearParams()
 	_layerOuterRadius.reserve(2*_numberOfLayers);
 	_sensorThick.reserve(2*_numberOfLayers);
 	_sensorWidth.reserve(2*_numberOfLayers);
+	_sensorWidth2.reserve(2*_numberOfLayers);
 	_sensorLength.reserve(2*_numberOfLayers);
 	_layerRealID.reserve(2*_numberOfLayers);
 	_ladderOffsetZ.reserve(2*_numberOfLayers);
@@ -126,16 +128,18 @@ void SiStripGeomFTD::initGearParams()
 	_ladderLength.reserve(2*_numberOfLayers);
 	for(int i = 0; i < _numberOfLayers; i++)
 	{
+		_layerType.push_back(_ftdLayer->getSensorType(i));
 		_layerZ.push_back(_ftdLayer->getZposition(i)*mm);
 		_layerRadius.push_back( _ftdLayer->getSensitiveRinner(i)*mm);
 		_layerPhi0.push_back(_ftdLayer->getPhi0(i));
-		_layerPetalOpAngle.reserve(_ftdLayer->getPhiHalfDistance(i));
+		_layerPetalOpAngle.push_back(_ftdLayer->getPhiHalfDistance(i));
 		_layerOuterRadius.push_back(_ftdLayer->getSensitiveRinner(i)+
 				_sensorLength[i]*mm);
 		_layerRealID.push_back(i+1);      
 
 		_sensorThick.push_back(_ftdLayer->getSensitiveThickness(i)*mm);
 		_sensorWidth.push_back(_ftdLayer->getSensitiveLengthMax(i)*mm);// x-direction
+		_sensorWidth2.push_back(_ftdLayer->getSensitiveLengthMin(i)*mm);// x-direction
 		_sensorLength.push_back(_ftdLayer->getSensitiveWidth(i)*mm);   // y-direction
 		_ladderZOffsetSign0.push_back(_ftdLayer->getZoffsetSign0(i));
 		_ladderOffsetZ.push_back(_ftdLayer->getZoffset(i)*mm);
@@ -148,6 +152,7 @@ void SiStripGeomFTD::initGearParams()
 	{
 		_layerRealID.push_back(-1*_layerRealID.at(i));
 	}
+	_layerType.insert(_layerType.end(),_layerType.begin(),_layerType.end());
 	_layerZ.insert(_layerZ.end(),_layerZ.begin(),_layerZ.end());
 	_layerRadius.insert(_layerRadius.end(),_layerRadius.begin(),_layerRadius.end());
 	_layerPhi0.insert(_layerPhi0.end(),_layerPhi0.begin(),_layerPhi0.end());
@@ -157,6 +162,7 @@ void SiStripGeomFTD::initGearParams()
 			_layerOuterRadius.end());
 	_sensorThick.insert(_sensorThick.end(),_sensorThick.begin(),_sensorThick.end());
 	_sensorWidth.insert(_sensorWidth.end(),_sensorWidth.begin(),_sensorWidth.end());
+	_sensorWidth2.insert(_sensorWidth2.end(),_sensorWidth2.begin(),_sensorWidth2.end());
 	_sensorLength.insert(_sensorLength.end(),_sensorLength.begin(),
 			_sensorLength.end());
 	_ladderOffsetZ.insert(_ladderOffsetZ.end(),_ladderOffsetZ.begin(),
@@ -170,16 +176,24 @@ void SiStripGeomFTD::initGearParams()
 	
 	// FIXME: Not for the gear--> must be a processor input parameter
 	_sensorPitchInRPhi  = std::vector<double>(2*_numberOfLayers,50.0 * um); //FIXME: HARDCODED
-	_sensorPitchInZ     = std::vector<double>(2*_numberOfLayers,-1); // NO HAY EN Z
-	_sensorNStripsInZ   = std::vector<int>(2*_numberOfLayers,-1); // NO HAY EN Z
-
 	_sensorNStripsInRPhi.reserve(2*_numberOfLayers);
 	for(int i = 0; i < _numberOfLayers; i++)
 	{
-		const double xminsensordown = _ftdLayer->getSensitiveLengthMin(i)*mm;
-		_sensorNStripsInRPhi[i] = _sensorNStripsInRPhi[i+7] = (int)(xminsensordown/_sensorPitchInRPhi[i])+1;
+		const double xmaxsensorup = _ftdLayer->getSensitiveLengthMax(i)*mm;
+		_sensorNStripsInRPhi.push_back( (int)(xmaxsensorup/_sensorPitchInRPhi[i])+1 );
 	}
+	_sensorNStripsInRPhi.insert(_sensorNStripsInRPhi.end(),_sensorNStripsInRPhi.begin(),
+			_sensorNStripsInRPhi.end());
 
+	_sensorPitchInZ     = std::vector<double>(2*_numberOfLayers,50.0*um); // FIXME
+	_sensorNStripsInZ.reserve(2*_numberOfLayers);
+	for(int i = 0; i < _numberOfLayers; i++)
+	{
+		const double widthsensor = _ftdLayer->getSensitiveWidth(i)*mm;
+		_sensorNStripsInZ[i] = (int)(widthsensor/_sensorPitchInZ[i])+1;
+	}
+	_sensorNStripsInZ.insert(_sensorNStripsInZ.end(),_sensorNStripsInZ.begin(),
+			_sensorNStripsInZ.end());
 }
 
 std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerHit * & simHit)
@@ -623,6 +637,92 @@ bool SiStripGeomFTD::isPointOutOfSensor(short int layerID, const CLHEP::Hep3Vect
 }
 
 
+//
+// Get strip ID for strips perpendicular to the RPhi local ref. frame plane, 
+// points are given in local ref. system.
+//
+//NOTES: Necesitem la posRPhi per designar quin  strip estic utilitzant,
+//       la pos Z es necesaria per definir a quina zona del trapezoide 
+//       estem, recorda que la Nstrips= Nstrips(Z)
+int SiStripGeomFTD::getStripIDInRPhi(short int diskID, double posRPhi, double posZ ) const
+{
+	// Get pitch
+	double sensPitch = getSensorPitchInRPhi(diskID);
+	if(sensPitch == 0) 
+	{
+		streamlog_out(ERROR) << "SiStripGeomFTD::getStripIDInRPhi " 
+			<< "- division by zero (sensPitch is zero)!!!"
+			<< std::endl;
+		exit(-1);
+	}
+	// Get number of strips
+	int sensNStrips = getSensorNStripsInRPhi(diskID);
+	
+   	int stripID;
+	// Calculate stripID
+	if(posRPhi <= 0.)
+	{
+		stripID = 0;
+	}
+	else 
+	{
+		stripID = floor(posRPhi/sensPitch);
+		if(stripID >= sensNStrips) 
+		{
+			stripID = sensNStrips - 1;
+		}
+	}
+	// Error
+	if(stripID >= sensNStrips) 
+	{
+		streamlog_out(ERROR) << "SiStripGeom::getStripIDInRPhi " 
+			<< "- stripID in RPhi greater than number of strips!!!"
+			<< std::endl;
+		exit(-1);
+	}
+/*std::cout << " SiStripGeomFTD::getStripIDInRPhi" << std::endl;
+std::cout << "----> " << sensPitch << std::endl;
+std::cout << "----> " << sensNStrips << std::endl;
+std::cout << "----> " << stripID << " (en zlocal=" << posZ << ")" << std::endl;
+std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;*/
+	return stripID;
+}
+
+// METHODS TO IDENTIFY
+
+//
+// Get sensor pitch for strips perpendicular to the RPhi plane in the local ref. system.
+// Currently it means the faced to IP sensors of the petals.
+// The posZ is needed because the trapezoid shape of the sensors therefore pitch=pitch(Z)
+//
+double SiStripGeomFTD::getSensorPitchInRPhi(short int diskID, double posZ) const
+{
+	if( (getLayerType(diskID) == strip) && 
+			(_sensorPitchInRPhi.size() > (unsigned int)diskID) )
+	{
+		const double tanAlpha = tan(_ftdLayer->getPhiHalfDistance(diskID));
+		if( (posZ>-EPS*um) && (posZ<(getSensorLength(diskID) + EPS*um)) ) 
+		{
+			return ((getSensorWidth(diskID) - 2.0*tanAlpha*posZ)
+					/getSensorNStripsInRPhi(diskID));
+		}
+		else {
+			streamlog_out(ERROR) 
+				<< std::setiosflags(std::ios::fixed | std::ios::internal ) 
+				<< std::setprecision(2)  
+				<< "SiStripGeom::getSensorPitchInRPhi - posZ: " 
+				<< std::setw(4) << posZ << " out of range!!!" 
+				<< std::resetiosflags(std::ios::showpos) 
+				<< std::setprecision(0) 
+				<< std::endl;
+			exit(0);;
+		}
+	}
+	else
+	{
+		return 0.;
+	}
+}
 
 // PRINT METHODS
 

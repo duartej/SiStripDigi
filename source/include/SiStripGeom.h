@@ -140,9 +140,9 @@ class SiStripGeom
 		//!Get sensor pitch in Z axis for barrel-type and forward-type sensors
 		virtual double getSensorPitchInZ(short int layerID) const;
 		
-		//!Get sensor pitch in R-Phi for barrel-type and forward-type sensors 
+		//!Get sensor pitch in the R-Phi plane of the local coordinate system
 		//!(posZ must be in local coordinate system)
-		virtual double getSensorPitchInRPhi(short int layerID, double posZ) const;
+		virtual double getSensorPitchInRPhi(short int layerID, double posZ) const = 0;
 
 		//!Get sensor thickness
 		virtual double getSensorThick(short int layerID) const;
@@ -199,15 +199,19 @@ class SiStripGeom
 
 		// OTHER METHODS - LOCAL REF. SYSTEM
 		//!Get info whether the given point is out of Si sensor
-		virtual bool isPointOutOfSensor(short int layerID, const CLHEP::Hep3Vector & point) const = 0;
-		//!Get strip position in Z direction for barrel-type and forward-type sensors
-		virtual double getStripPosInZ(short int layerID, int stripID) const;
-		//!Get strip position in R-Phi direction for barrel-type and forward-type sensors
-		virtual double getStripPosInRPhi(short int layerID, int stripID, double posZ) const;
-		//!Get strip ID in Z direction for barrel-type and forward-type sensors
-		virtual int getStripIDInZ(short int layerID, double posZ) const;
-		//!Get strip ID in R-Phi direction for barrel-type and forward-type sensors
-		virtual int getStripIDInRPhi(short int layerID, double posRPhi, double posZ) const;
+		virtual bool isPointOutOfSensor(short int layerID, 
+				const CLHEP::Hep3Vector & point) const = 0;
+		//!Get strip position for strips paralel to the local z-axis. 
+		virtual double getStripPosInZ(short int layerID, int stripID) const;// = 0;
+		//!Get strip position for strips lying in the R-Phi local plane
+		//!(parpendicular to local z-axis)
+		virtual double getStripPosInRPhi(short int layerID, int stripID, 
+				double posZ) const;// = 0;
+		//!Get strip ID for strips paralels to the local z-axis
+		virtual int getStripIDInZ(short int layerID, double posZ) const;// = 0;
+		//!Get strip ID for strips lying in the RPhi local plane
+		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
+				double posZ) const = 0;
 
 		
 		// PRINT METHODS

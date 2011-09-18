@@ -460,8 +460,8 @@ void SiStripDigi::processEvent(LCEvent * event)
 			// Transform magnetic field to local ref. system of a sensor
 			_magField = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, _magField);
 	
-			// Digitize the given hit and get sensor map of strips with total integrated charge
-			// and time when a particle crossed the sensor
+			// Digitize the given hit and get sensor map of strips with total
+			// integrated charge and time when a particle crossed the sensor
 			digitize(simDigiHit, sensorMap);
 
 	      // Unset actual sensor parameters
@@ -727,7 +727,10 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	DigiClusterVec eClusterVec;
 	DigiClusterVec hClusterVec;
 
+std::cout << " SiStripDigi::digitize " << std::endl;
+std::cout << " Calculate Clusters" << std::endl;
 	calcClusters(simDigiHit, eClusterVec, hClusterVec);
+std::cout << "--------- Calculate Clusters END ----------" << std::endl;
 	
 	//
 	// Go through all e, resp. h, clusters, perform drift, diffusion and Lorentz shift
@@ -768,19 +771,20 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 
 		// Calculate Lorentz shift + evaluate cluster new position, i.e. X = 0
 		shiftLorentz = getElecLorentzShift(cluster->getPosX());
-		cluster->set3Position( shiftLorentz + Hep3Vector(_sensorThick, cluster->getPosY(),cluster->getPosZ()) );
+		cluster->set3Position( shiftLorentz + Hep3Vector(_sensorThick, 
+					cluster->getPosY(),cluster->getPosZ()) );
 
-		//std::cout << "Electron - DriftTime: " << driftTime/ns << " DiffSigma: " << diffSigma/um << " LorentzShift: " << shiftLorentz/um << " " << std::endl;
+std::cout << "Electron - DriftTime[ns]: " << driftTime/ns << " DiffSigma[um]: " << diffSigma/um << " LorentzShift[um]: " << shiftLorentz/um << " " << " Position Final: " << cluster->get3Position() << std::endl;
 
 		//
 		// Add diffusion effect and save results as signals (IN R-PHI)
 		//
 		
 		//  Calculate min and max strip in R-Phi, collecting charge, (3 sigma limit)
-		int iMinStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() - 3*diffSigma),
-				cluster->getPosZ() );
-		int iMaxStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), (cluster->getPosY() + 3*diffSigma),
-				cluster->getPosZ() );
+		int iMinStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
+				(cluster->getPosY() - 3*diffSigma), cluster->getPosZ() );
+		int iMaxStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
+				(cluster->getPosY() + 3*diffSigma),cluster->getPosZ() );
 		double sensorPitchInRPhi = _geometry->getSensorPitchInRPhi( _currentLayerID  , cluster->getPosZ() ); // ????
 
 		//  Gauss distr. - primitive function: from A to B
@@ -788,9 +792,15 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		double sigmaSqrt2 = diffSigma * sqrt(2.);
 		double primAtA    = 0.5*( 1. + erf( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) );
 		double primAtB    = 0.;
-
-
-		//  Sensor map of strips with total integrated charge and time when particle crossed the detector
+std::cout << erf( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) << std::endl;
+std::cout << "--- ID Min Strip RPhi:" << iMinStripInRPhi << " ID Max Strip RPhi:" 
+	<< iMaxStripInRPhi << " sensorPitch[um] " << sensorPitchInRPhi/um << std::endl;
+std::cout << " Cluster mean position in Y local:" << mean << " in A:" << primAtA 
+	<< " at B:" << primAtB << " ---- " << iMinStripInRPhi*sensorPitchInRPhi
+	<< " sigmasqrt: " << sigmaSqrt2 << std::endl;
+		
+		//  Sensor map of strips with total integrated charge and time when 
+		//particle crossed the detector
 		SensorStripMap::iterator iterSMap;
 		StripChargeMap::iterator iterChMap;
 		
@@ -804,10 +814,11 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 			double charge = 0.;
 			
 			// Gauss distr. - prim. function at B
-			primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitchInRPhi - mean)/sigmaSqrt2) );
+			primAtB = 0.5*(1.+erf( ((i+1)*sensorPitchInRPhi - mean)/sigmaSqrt2) );
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
+std::cout << " Carga en el strip " << i << " : " << charge << std::endl;
 			
 			// New integration starting point
 			primAtA = primAtB;
@@ -866,6 +877,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 			}
 			
 		} // Calculate signal at each strip
+exit(0);
 
       //
       // Add diffusion effect and save results as signals (IN Z)
@@ -1234,7 +1246,8 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 	// Update info
 	_rootDepEG4 += hit->getdEdx();
 #endif
-	// Decide if particle is low-energy --> Geant 4 Landau fluctuations used in low energy regime
+	// Decide if particle is low-energy --> Geant 4 Landau fluctuations used in 
+	//low energy regime
 	bool lowEnergyPart = false;
 
 	if(betaGamma<_landauBetaGammaCut) 
@@ -1767,8 +1780,9 @@ double SiStripDigi::getElecDriftTime(double pos)
 	
 	if (pos>_sensorThick) 
 	{
-		streamlog_out(ERROR) << "Problem to calculate total drift time. Electrons at position: "
-		            		   << pos << " are out of range!" << std::endl;
+		streamlog_out(ERROR) << "Problem to calculate total drift time. " 
+			<< "Electrons at position: " 
+			<< pos << " are out of range!" << std::endl;
 		exit(0);
 	}
 	

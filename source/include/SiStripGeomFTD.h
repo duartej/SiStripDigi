@@ -39,6 +39,8 @@ namespace sistrip
 //! Converted to abstract class used by the builder to construct the 
 //! different subdetectors which going to use silicon strips (FTD,SIT,..)
 
+enum LayerTypeFTD { strip = sistrip::stripF };
+
 class SiStripGeomFTD: public SiStripGeom
 {
 	public:
@@ -93,6 +95,19 @@ class SiStripGeomFTD: public SiStripGeom
 		//! Get info whether the given point is out of Si sensor (parameters: layerID,
 		//! space point in local ref. system)
 		virtual bool isPointOutOfSensor(short int layerID, const CLHEP::Hep3Vector & point) const;
+		//! Get sensor pitch for strips perpendicular to the RPhi plane in the local
+		//! ref. system.
+		//! Currently it means the faced to IP sensors of the petals.
+		double getSensorPitchInRPhi(short int diskID, double posZ = 0) const;
+		
+		// OTHER METHODS - IDENTIFYING
+		//! Get strip ID (in Phi), points are given in local ref. system; strips are
+		//! considered to be perpendicular to beam axis. It is perpedicular to the 
+		//! RPhi LRF and paralel to the z-axis of the LRF. Recall that the number
+		//! of strips in the RPhi LRF plane is dependent of Z (in LRF) due to 
+		//! the trapezoid shape of the sensors.
+		//! That sensor are the faced to IP on each petal (in the current design)
+		int getStripIDInRPhi(short int diskID, double posRPhi, double posZ ) const;
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters

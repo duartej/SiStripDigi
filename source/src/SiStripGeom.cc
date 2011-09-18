@@ -256,8 +256,10 @@ short int SiStripGeom::getLayerType(short int layerID) const
 	}
 	else 
 	{
-		streamlog_out(ERROR) << "SiStripGeom::getLayerType - layerID: " << layerID << " out of range!!!"
-			<< std::endl;
+		//FIXME---> _layerType is empty!!! FIXME
+		std::cout << " size " << _layerType.size() << std::endl;
+		streamlog_out(ERROR) << "SiStripGeom::getLayerType - layerID: " 
+			<< layerID << " out of range!!!" << std::endl;
 		exit(0);
 	}
 }
@@ -448,12 +450,18 @@ int SiStripGeom::getSensorNStripsInZ(short int layerID) const
 }
 
 //
-// Get number of strips in R-Phi (in each sensor)
+// Get number of strips lying in R-Phi local ref. sytem plane (in each sensor)
 //
 int SiStripGeom::getSensorNStripsInRPhi(short int layerID) const
 {
-   if (_sensorNStripsInRPhi.size()>(unsigned short int)layerID) return _sensorNStripsInRPhi[layerID];
-   else return 0;
+	if(_sensorNStripsInRPhi.size()>(unsigned short int)layerID)
+	{
+		return _sensorNStripsInRPhi[layerID];
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 //
@@ -466,11 +474,13 @@ double SiStripGeom::getSensorPitchInZ(short int layerID) const
 }
 
 //
-// Get sensor pitch in R-Phi for barrel-type and forward-type sensors
+// Get sensor pitch for strips perpendicular to the RPhi plane in the local ref. system.
+// 
 //
-double SiStripGeom::getSensorPitchInRPhi(short int layerID, double posZ) const
+// DETECTOR DEPENDENT
+/*double SiStripGeom::getSensorPitchInRPhi(short int layerID, double posZ) const
 {
-   if      ( (getLayerType(layerID) == stripB) && (_sensorPitchInRPhi.size()>(unsigned short int)layerID) ) return _sensorPitchInRPhi[layerID];
+	if( (getLayerType(layerID) == stripB) && (_sensorPitchInRPhi.size()>(unsigned short int)layerID) ) return _sensorPitchInRPhi[layerID];
    else if (  getLayerType(layerID) == stripF) {
 
       double tanAlpha = (getSensorWidth(layerID) - getSensorWidth2(layerID))/2./getSensorLength(layerID);
@@ -486,7 +496,7 @@ double SiStripGeom::getSensorPitchInRPhi(short int layerID, double posZ) const
       }
    }
    else return 0.;
-}
+}*/
 
 //
 // Get sensor thickness
@@ -507,13 +517,16 @@ double SiStripGeom::getSensorThick(short int layerID) const
 //
 double SiStripGeom::getSensorWidth(short int layerID) const
 {
-   if (_sensorWidth.size()>(unsigned short int)layerID) return _sensorWidth[layerID];
-   else {
-
-      streamlog_out(ERROR) << "SiStripGeom::getSensorWidth - layerID: " << layerID << " out of range!!!"
-                           << std::endl;
-      exit(0);
-   }
+	if(_sensorWidth.size()>(unsigned short int)layerID)
+	{
+		return _sensorWidth[layerID];
+	}
+	else 
+	{
+		streamlog_out(ERROR) << "SiStripGeom::getSensorWidth - layerID: " 
+			<< layerID << " out of range!!!" << std::endl;
+		exit(0);
+	}
 }
 
 //
@@ -521,8 +534,14 @@ double SiStripGeom::getSensorWidth(short int layerID) const
 //
 double SiStripGeom::getSensorWidth2(short int layerID) const
 {
-   if (_sensorWidth2.size()>(unsigned short int)layerID) return _sensorWidth2[layerID];
-   else                                                  return getSensorWidth(layerID);
+	if(_sensorWidth2.size()>(unsigned short int)layerID)
+	{
+		return _sensorWidth2[layerID];
+	}
+	else
+	{
+		return getSensorWidth(layerID);
+	}
 }
 
 //
@@ -981,7 +1000,7 @@ bool SiStripGeom::isPointOutOfSensor(short int layerID, const Hep3Vector & point
 //
 // Get Z-position of given strip in local ref system (in system of units defined in PhysicalConstants.h);
 // strips are considered to be perpendicular to beam axis for both barrel-type and forward-type sensors.
-//
+//SUBDETECTOR DEPENDENT
 double SiStripGeom::getStripPosInZ(short int layerID, int stripID) const
 {
 	
@@ -1078,7 +1097,9 @@ int SiStripGeom::getStripIDInZ(short int layerID, double posZ ) const
 // considered to be parallel to beam axis for barrel-type sensors and at angle
 // alpha for forward-type sensors (see getSensorPitchInRPhi method).
 //
-int SiStripGeom::getStripIDInRPhi(short int layerID, double posRPhi, double posZ ) const
+// IMPLEMENTATION DEPENDENT OF THE SUBDETECTOR
+
+/*int SiStripGeom::getStripIDInRPhi(short int layerID, double posRPhi, double posZ ) const
 {
 	// Get pitch
 	double sensPitch = getSensorPitchInRPhi(layerID, posZ);
@@ -1114,7 +1135,7 @@ int SiStripGeom::getStripIDInRPhi(short int layerID, double posRPhi, double posZ
 	}
 	// Return stripID
 	return stripID;
-}
+}*/
 
 
 // PRINT METHODS
