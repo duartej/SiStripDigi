@@ -723,6 +723,7 @@ void SiStripDigi::end()
 // SimTrackerDigiHit, output parameter: sensor map of strips with total
 // integrated charge in R-Phi and Z; and time when particle crossed the sensor)
 //
+//FIXME: Still some fails in the Z-position...
 void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap & sensorMap)
 {
 	//
