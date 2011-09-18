@@ -39,97 +39,6 @@ namespace sistrip
 	//	std::cout << "Deleting SiStripGeom" << std::endl;
 	}
 	
-/* Virtual pure	//
-	// Method initializing this class - reads Gear parameters from XML file
-	//
-	void SiStripGeom::initGearParams()
-	{
-		//------Get the geometry from the gear file-----//
-		const gear::VXDParameters& gearVXD = Global::GEAR->getVXDParameters() ;
-		const gear::VXDLayerLayout& layerVXD = gearVXD.getVXDLayerLayout(); 
-	
-	//number of layers
-	_numberOfLayers  = layerVXD.getNLayers();
-	
-	//the number of ladders within layers
-	_laddersInLayer.resize(_numberOfLayers);
-
-	//Azimuthal offset of the whole structure of each layer.
-	_layerHalfPhi.resize(_numberOfLayers);
-	
-	//layer thickness and half-thickness
-	_layerHalfThickness.resize(_numberOfLayers);
-	_layerThickness.resize(_numberOfLayers);
-	
-	//Distance from the middle of the Si sensor to IP in each layer.
-	_layerRadius.resize(_numberOfLayers);
-	
-	//The length of the Si sensor in each layer
-	_layerLadderLength.resize(_numberOfLayers);
-	
-	//The width and half-width of the Si sensor in each layer
-	_layerLadderWidth.resize(_numberOfLayers);
-	_layerLadderHalfWidth.resize(_numberOfLayers);
-
-	//The offset of the sensitive area in ladder in each layer
-	_layerActiveSiOffset.resize(_numberOfLayers);
-	
-	// The gaps in z between two subladders within each layer
-	const gear::GearParameters& gearVXDInfra = Global::GEAR->getGearParameters("VXDInfra") ;
-	const std::vector<double> laddergaps = gearVXDInfra.getDoubleVals("LadderGaps");
-	std::cout<<"laddergaps size "<<laddergaps.size()<<std::endl;
-	_layerLadderGap.resize(laddergaps.size());
-
-	//ladder offset in phi
-	_layerPhiOffset.resize(_numberOfLayers);
-	
-	for(int layer = 0; layer < _numberOfLayers; layer++)
-	{
-		_laddersInLayer[layer] = layerVXD.getNLadders(layer);  
-		_layerHalfPhi[layer] = layerVXD.getPhi0(layer); 
-		
-		//should half phi be replaced by this from Alexei's original code?
-		//_layerHalfPhi[layer] = PI/((double)_laddersInLayer[layer]); OJOOO
-		
-		_layerThickness[layer] =layerVXD.getSensitiveThickness(layer);
-		_layerHalfThickness[layer] = 0.5*_layerThickness[layer];      
-		_layerRadius[layer] =layerVXD.getSensitiveDistance(layer) + 0.5 * _layerThickness[layer];
-		_layerLadderLength[layer] = 2*layerVXD.getSensitiveLength(layer);
-		_layerLadderWidth[layer] = layerVXD.getSensitiveWidth(layer);
-		_layerLadderHalfWidth[layer] = _layerLadderWidth[layer]/2.;
-		_layerActiveSiOffset[layer] = - (layerVXD.getSensitiveOffset(layer));
-		_layerLadderGap[layer] = laddergaps[layer];
-		_layerPhiOffset[layer] = layerVXD.getPhi0(layer);
-	}
-		
-	std::cout<<" _numberOfLayers "<<_numberOfLayers<<std::endl;
-	std::cout<<" _pixelSizeX "<<_pixelSizeX<<std::endl;
-	std::cout<<" _pixelSizeY "<<_pixelSizeY<<std::endl;
-	std::cout<<" _electronsPerKeV "<<_electronsPerKeV<<std::endl;
-	std::cout<<" _segmentDepth "<<_segmentDepth<<std::endl;
-	std::cout<<" _currentTotalCharge "<<_currentTotalCharge<<std::endl;
-	for (int i=0; i<_numberOfLayers; ++i) 
-	{
-		std::cout<<"layer "<<i<<std::endl;
-		std::cout<<" _laddersInLayer "<<_laddersInLayer[i]<<std::endl;
-		std::cout<<" _layerRadius "<<_layerRadius[i]<<std::endl;
-		std::cout<<" _layerLadderLength "<<_layerLadderLength[i]<<std::endl;
-		std::cout<<" _layerLadderHalfWidth "<<_layerLadderHalfWidth[i]<<std::endl;
-		std::cout<<" _layerPhiOffset "<<_layerPhiOffset[i]<<std::endl;
-		std::cout<<" _layerActiveSiOffset "<< _layerActiveSiOffset[i]<<std::endl;
-		std::cout<<" _layerHalfPhi "<<_layerHalfPhi[i]<<std::endl;
-		std::cout<<" _layerLadderGap "<<_layerLadderGap[i]<<std::endl;
-		std::cout<<" _bkgdHitsInLayer "<<_bkgdHitsInLayer[i]<<std::endl;
-		std::cout<<" _layerLadderWidth "<<_layerLadderWidth[i]<<std::endl;
-		std::cout<<" _layerThickness "<<_layerThickness[i]<<std::endl;
-		
-		std::cout<<" _layerHalfThickness "<<_layerHalfThickness[i]<<std::endl;
-	}
-	
-	//SCALING = 25000.;
-}*/ 
-
-
 // GEOMETRY PROPERTIES
 
 //
@@ -237,7 +146,6 @@ std::cout << realLayerID << std::endl;
 			return i;
 		}
 	}
-	
 	streamlog_out(ERROR) << "SiStripGeom::getLayerIDCTypeNo - layer: " << 
 		realLayerID << " not found in layer list!!!" << std::endl;
 	exit(-1);
@@ -441,16 +349,22 @@ short int SiStripGeom::getNSensors(short int layerID) const
 }
 
 //
-// Get number of strips in Z axis (in each sensor)
+// Get number of Z strips (in each sensor)
 //
 int SiStripGeom::getSensorNStripsInZ(short int layerID) const
 {
-   if (_sensorNStripsInZ.size()>(unsigned short int)layerID) return _sensorNStripsInZ[layerID];
-   else return 0;
+   if(_sensorNStripsInZ.size()>(unsigned short int)layerID)
+   {
+	   return _sensorNStripsInZ[layerID];
+   }
+   else
+   {
+	   return 0;
+   }
 }
 
 //
-// Get number of strips lying in R-Phi local ref. sytem plane (in each sensor)
+// Get number of RPhi strips (in each sensor)
 //
 int SiStripGeom::getSensorNStripsInRPhi(short int layerID) const
 {
@@ -469,34 +383,16 @@ int SiStripGeom::getSensorNStripsInRPhi(short int layerID) const
 //
 double SiStripGeom::getSensorPitchInZ(short int layerID) const
 {
-   if (_sensorPitchInZ.size()>(unsigned short int)layerID) return _sensorPitchInZ[layerID];
-   else return 0.;
+   if(_sensorPitchInZ.size()>(unsigned short int)layerID)
+   {
+	   return _sensorPitchInZ[layerID];
+   }
+   else
+   {
+	   return 0.;
+   }
 }
 
-//
-// Get sensor pitch for strips perpendicular to the RPhi plane in the local ref. system.
-// 
-//
-// DETECTOR DEPENDENT
-/*double SiStripGeom::getSensorPitchInRPhi(short int layerID, double posZ) const
-{
-	if( (getLayerType(layerID) == stripB) && (_sensorPitchInRPhi.size()>(unsigned short int)layerID) ) return _sensorPitchInRPhi[layerID];
-   else if (  getLayerType(layerID) == stripF) {
-
-      double tanAlpha = (getSensorWidth(layerID) - getSensorWidth2(layerID))/2./getSensorLength(layerID);
-      if ( (posZ>-EPS*um) && (posZ<(getSensorLength(layerID) + EPS*um)) ) return ((getSensorWidth(layerID) - 2*tanAlpha*posZ)/getSensorNStripsInRPhi(layerID));
-      else {
-
-         streamlog_out(ERROR) << std::setiosflags(std::ios::fixed | std::ios::internal ) << std::setprecision(2)
-                              << "SiStripGeom::getSensorPitchInRPhi - posZ: "            << std::setw(4)         << posZ << " out of range!!!"
-                              << std::resetiosflags(std::ios::showpos)
-                              << std::setprecision(0)
-                              << std::endl;
-         exit(0);;
-      }
-   }
-   else return 0.;
-}*/
 
 //
 // Get sensor thickness
@@ -604,406 +500,11 @@ double SiStripGeom::getSensorRimWidthInRPhi(short int layerID) const
 // TRANSFORMATION METHODS - GLOBAL REF. SYSTEM
 
 //
-// Method transforming given point from global ref. system to local ref. system
-// (parameters: layerID, ladderID, sensorID and space point in global ref. system)
-//
-/*
-Hep3Vector SiStripGeom::transformPointToLocal(short int layerID, short int ladderID, short int sensorID, const Hep3Vector & globalPoint)
-{
-   // Initialize local point
-	Hep3Vector localPoint(globalPoint);
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-	   double theta = getLadderTheta(layerID);
-	   double phi   = getLadderPhi(layerID, ladderID);
-
-      // Find (0,0,0) position of local coordinate system
-      Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
-      localOrigin.rotateZ(+phi);
-
-      // Perform translation - to the center of a ladder
-      localPoint -= localOrigin;
-
-      // Perform rotation - to the center of a ladder
-      localPoint.rotateZ(-phi);
-      localPoint.rotateY(+theta);
-
-
-      // Perform translation such as X, Y, Z are positive
-      localPoint += Hep3Vector(+getSensorThick(layerID)/2., +getSensorWidth(layerID)/2.,
-                               +0.5*getLadderLength(layerID) - (2*sensorID + 1)*getSensorRimWidthInZ(layerID) - sensorID*getSensorGapInBetween(layerID)
-                               - sensorID*getSensorLength(layerID));
-
-      // Check if local point within sensor boundaries +- epsilon
-      if (isPointOutOfSensor(layerID, localPoint)) {
-
-         streamlog_out(ERROR) << std::setprecision(3) << "SiStripGeom::transformPointToLocal - point: "
-                              << localPoint           << " is out of sensor!!!"
-                              << std::setprecision(0) << std::endl;
-         exit(0);
-      }
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return space point in local ref. system
-   return localPoint;
-}
-
-//
-// Method transforming given vector from global ref. system to local ref. system
-// (parameters: layerID, ladderID, sensorID and vector in global ref. system)
-//
-Hep3Vector SiStripGeom::transformVecToLocal(short int layerID, short int ladderID, const Hep3Vector & globalVec)
-{
-   // Initialize local vector
-	Hep3Vector localVec(globalVec);
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Perform rotation - to the center of a ladder
-      localVec.rotateZ(-phi);
-      localVec.rotateY(+theta);
-
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return vector in local ref. system
-   return localVec;
-}
-
-//
-// Method transforming given matrix 3x3 from global ref. system to local ref. system
-// (parameters: layerID, ladderID, sensorID and matrix in global ref. system)
-//
-HepMatrix SiStripGeom::transformMatxToLocal(short int layerID, short int ladderID, const HepMatrix & globalMatrix)
-{
-   // Initialize local matrix 3x3 to zero values
-	HepMatrix localMatrix(3,3,0);
-
-   // Initialize rotation matrices: R, R^T (transposition)
-	HepMatrix rotMatrix(3,3,0);
-	HepMatrix rotMatrixT(3,3,0);
-
-	// Gear type: VXD
-	   if (_gearType == "VXD") {
-
-	      // Calculate rotation angles
-	      double theta = getLadderTheta(layerID);
-	      double phi   = getLadderPhi(layerID, ladderID);
-
-	      // Calculate rotation matrices - help
-	      HepRotation rotMatrixZ(Hep3Vector(0,0,1),-phi);
-	      HepRotation rotMatrixY(Hep3Vector(0,1,0),+theta);
-	      HepRotation rotMatrixHelp(rotMatrixY*rotMatrixZ);
-
-	      HepRotation rotMatrixHelpT(rotMatrixHelp.inverse());
-
-	      for (int i=0; i<3; i++) {
-	         for (int j=0; j<3; j++) {
-	            rotMatrix[i][j]  = rotMatrixHelp[i][j];
-	            rotMatrixT[i][j] = rotMatrixHelpT[i][j];
-	         }
-	      }
-	   }
-
-	   // Gear type: unknown - error
-	   else {
-	      streamlog_out(ERROR) << "Unknown gear type!"
-	                           << std::endl;
-
-	      exit(0);
-	   }
-
-   // Transform given matrix - rotation wrt global ref. system
-   localMatrix = rotMatrix*globalMatrix*rotMatrixT;
-
-   // Return matrix in local ref. system
-   return localMatrix;
-}
-
-
-// TRANSFORMATION METHODS - LOCAL REF. SYSTEM
-
-//
-// Method transforming given point from local ref. system to global ref. system
-// (parameters: layerID, ladderID, sensorID and space point in local ref. system)
-//
-Hep3Vector SiStripGeom::transformPointToGlobal(short int layerID, short int ladderID, short int sensorID, const Hep3Vector & localPoint)
-{
-   // Initialize global point
-   Hep3Vector globalPoint(localPoint);
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Find (0,0,0) position of local coordinate system
-      Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
-      localOrigin.rotateZ(+phi);
-
-      // Perform translation - to the center of a ladder
-      globalPoint -= Hep3Vector(+getSensorThick(layerID)/2., +getSensorWidth(layerID)/2.,
-                                +0.5*getLadderLength(layerID) - (2*sensorID + 1)*getSensorRimWidthInZ(layerID) - sensorID*getSensorGapInBetween(layerID)
-                                - sensorID*getSensorLength(layerID));
-
-      // Perform rotation - with respect to the local centre of a ladder
-      globalPoint.rotateY(-theta);
-      globalPoint.rotateZ(+phi);
-
-      // Perform translation - to the global system
-      globalPoint += localOrigin;
-
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return space point in global ref. system
-	return globalPoint;
-}
-
-//
-// Method transforming given vector from local ref. system to global ref. system
-// (parameters: layerID, ladderID, sensorID and vector in local ref. system)
-//
-Hep3Vector SiStripGeom::transformVecToGlobal(short int layerID, short int ladderID, const Hep3Vector & localVec)
-{
-   // Initialize global vector
-	Hep3Vector globalVec(localVec);
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Perform rotation - to the center of a ladder
-      globalVec.rotateY(-theta);
-      globalVec.rotateZ(+phi);
-
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return vector in global ref. system
-   return globalVec;
-}
-
-//
-// Method transforming given matrix 3x3 from local ref. system to global ref. system
-// (parameters: layerID, ladderID, sensorID and matrix in local ref. system)
-//
-HepMatrix SiStripGeom::transformMatxToGlobal(short int layerID, short int ladderID, const HepMatrix & localMatrix)
-{
-   // Initialize local matrix 3x3 to zero values
-   HepMatrix globalMatrix(3,3,0);
-
-   // Initialize rotation matrices: R, R^T (transposition)
-   HepMatrix rotMatrix(3,3,0);
-   HepMatrix rotMatrixT(3,3,0);
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Calculate rotation matrices - help
-      HepRotation rotMatrixY(Hep3Vector(0,1,0),-theta);
-      HepRotation rotMatrixZ(Hep3Vector(0,0,1),+phi);
-      HepRotation rotMatrixHelp(rotMatrixZ*rotMatrixY);
-
-      HepRotation rotMatrixHelpT(rotMatrixHelp.inverse());
-
-      for (int i=0; i<3; i++) {
-         for (int j=0; j<3; j++) {
-            rotMatrix[i][j]  = rotMatrixHelp[i][j];
-            rotMatrixT[i][j] = rotMatrixHelpT[i][j];
-         }
-      }
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Transform given matrix - rotation wrt local ref. system
-   globalMatrix = rotMatrix*localMatrix*rotMatrixT;
-
-   // Return matrix in global ref. system
-   return globalMatrix;
-}
-
-
-// OTHER METHODS - GLOBAL REF. SYSTEM
-
-//
-// Get info whether the given point is inside of Si sensor (parameters: layerID,
-// space point in local ref. system)
-//
-bool SiStripGeom::isPointInsideSensor (short int layerID, short int ladderID, short int sensorID, const Hep3Vector & point) const
-{
-   bool isIn = false;
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-      //
-      // Transform point to local ref. system
-
-      // Initialize local point
-      Hep3Vector localPoint(point);
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Find (0,0,0) position of local coordinate system
-      Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
-      localOrigin.rotateZ(+phi);
-
-      // Perform translation - to the center of a ladder
-      localPoint -= localOrigin;
-
-      // Perform rotation - to the center of a ladder
-      localPoint.rotateZ(-phi);
-      localPoint.rotateY(+theta);
-
-      // Perform translation such as X, Y, Z are positive
-      localPoint += Hep3Vector(+getSensorThick(layerID)/2., +getSensorWidth(layerID)/2.,
-                               +0.5*getLadderLength(layerID) - (2*sensorID + 1)*getSensorRimWidthInZ(layerID) - sensorID*getSensorGapInBetween(layerID)
-                               - sensorID*getSensorLength(layerID));
-
-
-
-      // Boundary set +- epsilon
-      // Barrel-type sensors
-      if ( (getLayerType(layerID) == stripB) && ( (localPoint.getX() < (getSensorThick(layerID) +EPS*um)) && (localPoint.getX() > (-EPS*um)) &&
-                                                  (localPoint.getY() < (getSensorWidth(layerID) +EPS*um)) && (localPoint.getY() > (-EPS*um)) &&
-                                                  (localPoint.getZ() < (getSensorLength(layerID)+EPS*um)) && (localPoint.getZ() > (-EPS*um)) ) ) isIn = true;
-      // Forward-type sensors
-      if (getLayerType(layerID) == stripF) {
-
-         double tanAlpha          = (getSensorWidth(layerID) - getSensorWidth2(layerID))/2./getSensorLength(layerID);
-         double actualSensorWidth = (getSensorWidth(layerID) - 2*tanAlpha*localPoint.getZ());
-
-         // Recalculate point into "local" local system (width depends on posZ)
-         Hep3Vector recalcPoint(localPoint.getX(), localPoint.getY() - getSensorWidth(layerID)/2. + actualSensorWidth/2., localPoint.getZ());
-
-         if ( (recalcPoint.getX() < (getSensorThick(layerID) +EPS*um)) && (recalcPoint.getX() > (-EPS*um)) &&
-              (recalcPoint.getY() < (actualSensorWidth       +EPS*um)) && (recalcPoint.getY() > (-EPS*um)) &&
-              (recalcPoint.getZ() < (getSensorLength(layerID)+EPS*um)) && (recalcPoint.getZ() > (-EPS*um)) ) isIn = true;
-      }
-
-   }
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return if out or not
-   return isIn;
-}
-
-
-// OTHER METHODS - LOCAL REF. SYSTEM
-
-//
-// Get info whether the given point is out of Si sensor (parameters: layerID,
-// space point in local ref. system)
-//
-bool SiStripGeom::isPointOutOfSensor(short int layerID, const Hep3Vector & point) const
-{
-	bool isOut = false;
-
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Boundary set +- epsilon
-      // Barrel-type sensors
-      if ( (getLayerType(layerID) == stripB) && ( (point.getX() > (getSensorThick(layerID) +EPS*um)) || (point.getX() < (-EPS*um)) ||
-                                                  (point.getY() > (getSensorWidth(layerID) +EPS*um)) || (point.getY() < (-EPS*um)) ||
-                                                  (point.getZ() > (getSensorLength(layerID)+EPS*um)) || (point.getZ() < (-EPS*um)) ) ) isOut = true;
-      // Forward-type sensors
-      if (getLayerType(layerID) == stripF) {
-
-         double tanAlpha          = (getSensorWidth(layerID) - getSensorWidth2(layerID))/2./getSensorLength(layerID);
-         double actualSensorWidth = (getSensorWidth(layerID) - 2*tanAlpha*point.getZ());
-
-         // Recalculate point into "local" local system (width depends on posZ)
-         Hep3Vector recalcPoint(point.getX(), point.getY() - getSensorWidth(layerID)/2. + actualSensorWidth/2., point.getZ());
-
-         if ( (recalcPoint.getX() > (getSensorThick(layerID) +EPS*um)) || (recalcPoint.getX() < (-EPS*um)) ||
-              (recalcPoint.getY() > (actualSensorWidth       +EPS*um)) || (recalcPoint.getY() < (-EPS*um)) ||
-              (recalcPoint.getZ() > (getSensorLength(layerID)+EPS*um)) || (recalcPoint.getZ() < (-EPS*um)) ) isOut = true;
-      }
-
-   }
-   // Gear type: unknown - error
-   else {
-   	streamlog_out(ERROR) << "Unknown gear type!"
-   	                     << std::endl;
-
-      exit(0);
-   }
-
-   // Return if out or not
-   return isOut;
-}
-
-*/
-
-//
 // Get Z-position of given strip in local ref system (in system of units defined in PhysicalConstants.h);
 // strips are considered to be perpendicular to beam axis for both barrel-type and forward-type sensors.
 //SUBDETECTOR DEPENDENT
 double SiStripGeom::getStripPosInZ(short int layerID, int stripID) const
 {
-	
 	// Get pitch
 	double sensPitch = getSensorPitchInZ(layerID);
 	
@@ -1048,9 +549,11 @@ double SiStripGeom::getStripPosInRPhi(short int layerID, int stripID, double pos
 
 //
 // Get strip ID (in Z), point is given in local ref. system; strips are
-// considered to be perpendicular to beam axis for both barrel-type and
-// forward-type sensors.
+// considered to be perpendicular (not in FTD, is paralel) to beam axis
+// 
 //
+// FIXME: (OR NOT) It seems to be common to all the subdetectors.. not
+//        needed to be pure virtual
 int SiStripGeom::getStripIDInZ(short int layerID, double posZ ) const
 {
 	// Get pitch
@@ -1058,7 +561,8 @@ int SiStripGeom::getStripIDInZ(short int layerID, double posZ ) const
 
 	if (sensPitch == 0) 
 	{
-		streamlog_out(ERROR) << "SiStripGeom::getStripIDInZ - division by zero (sensPitch is zero)!!!"
+		streamlog_out(ERROR) << "SiStripGeom::getStripIDInZ " 
+			<< "- division by zero (sensPitch is zero)!!!"
 			<< std::endl;
 		exit(-1);
 	}
@@ -1084,7 +588,8 @@ int SiStripGeom::getStripIDInZ(short int layerID, double posZ ) const
    	// Error
 	if (stripID >= sensNStrips) 
 	{
-		streamlog_out(ERROR) << "SiStripGeom::getStripIDInZ - stripID in Z greater than number of strips!!!"
+		streamlog_out(ERROR) << "SiStripGeom::getStripIDInZ " 
+			<< "- stripID in Z greater than number of strips!!!"
 			<< std::endl;
 		exit(-1);
 	}
