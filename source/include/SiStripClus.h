@@ -25,6 +25,7 @@
 #include <lcio.h>
 #include <EVENT/LCCollection.h>
 #include <UTIL/LCRelationNavigator.h>
+#include <IMPL/TrackerPulseImpl.h>
 
 // Include Marlin
 #include <marlin/Global.h>
@@ -39,6 +40,7 @@
 // Namespaces
 using namespace lcio;
 using namespace marlin;
+
 
 namespace sistrip {
 
@@ -55,56 +57,56 @@ typedef       std::queue < std::string >          StringQue;
 //! @author Z. Drasal, Charles University Prague
 //!
 
-class SiStripClus : public Processor {
-
- public:
-
-//!Method that returns a new instance of this processor
-   virtual Processor * newProcessor() { return new SiStripClus(); }
-
-//!Constructor - set processor description and register processor parameters
-   SiStripClus();
-
-//!Method called at the beginning of data processing - used for initialization
-   virtual void init();
-
-//!Method called for each run - used for run header processing
-   virtual void processRunHeader(LCRunHeader * run);
-
-//!Method called for each event - used for event data processing
-   virtual void processEvent(LCEvent * event);
-
-//!Method called after each event - used for data checking
-   virtual void check(LCEvent * event);
-
-//!Method called after all data processing
-   virtual void end();
-
- protected:
-
-// MAIN CLUSTER METHOD
-
-//!Method searching for clusters - first, strips above _SNseed threshold, so-called seed
-//!strips, are defined. Then the strips adjacent to the seeds and above _SNadjacent
-//!threshold are extracted. Finally, clusters taken as Gaussian are calculated (if total
-//!charge is above _SNtotal threshold) and their mean positions and sigmas are saved in either
-//!R-Phi or Z. Finally, they are mixed into 3D cluster. (input parameter: sensor map
-//!of strips with total integrated charge, output parameter: sensor map of clusters
-//!found by this algorithm)
-   void findClus(SensorStripMap & sensStripMap, ClsVec & clsVec);
-
-// OTHER METHODS
-
-//!Method calculating hits from given clusters
-	void calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits);
-
-//!Method calculating hit resolution, i.e. covariance matrix
-   void calcResolution(short int layerID, double hitTheta, float * covMatrix);
-
-//!Method to update and store the Sensor strip map  
-bool updateMap(const TrackerPulseImpl * pulse, SensorStripMap & sensorMap );
-
-// PRINT METHODS
+class SiStripClus : public Processor 
+	{
+		public:
+			
+			//!Method that returns a new instance of this processor
+			virtual Processor * newProcessor() { return new SiStripClus(); }
+			
+			//!Constructor - set processor description and register processor parameters
+			SiStripClus();
+			
+			//!Method called at the beginning of data processing - used for initialization
+			virtual void init();
+			
+			//!Method called for each run - used for run header processing
+			virtual void processRunHeader(LCRunHeader * run);
+			
+			//!Method called for each event - used for event data processing
+			virtual void processEvent(LCEvent * event);
+			
+			//!Method called after each event - used for data checking
+			virtual void check(LCEvent * event);
+			
+			//!Method called after all data processing
+			virtual void end();
+			
+		protected:
+			// MAIN CLUSTER METHOD
+			
+			//!Method searching for clusters - first, strips above _SNseed threshold, so-called seed
+			//!strips, are defined. Then the strips adjacent to the seeds and above _SNadjacent
+			//!threshold are extracted. Finally, clusters taken as Gaussian are calculated (if total
+			//!charge is above _SNtotal threshold) and their mean positions and sigmas are saved in either
+			//!R-Phi or Z. Finally, they are mixed into 3D cluster. (input parameter: sensor map
+			//!of strips with total integrated charge, output parameter: sensor map of clusters
+			//!found by this algorithm)
+			void findClus(SensorStripMap & sensStripMap, ClsVec & clsVec);
+			
+			// OTHER METHODS
+			//!Method calculating hits from given clusters
+			void calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits);
+			
+			//!Method calculating hit resolution, i.e. covariance matrix
+			void calcResolution(short int layerID, double hitTheta, float * covMatrix);
+			
+			//!Method to update and store the Sensor strip map
+			void updateMap(TrackerPulseImpl * pulse, SensorStripMap & sensorMap );
+			//!Method to release memory of the SensorStripMap
+			void releaseMap(SensorStripMap & sensorMap);
+			
+			// PRINT METHODS
 
 //!Method printing processor parameters
    void printProcessorParams() const;

@@ -351,235 +351,31 @@ void SiStripClus::processEvent(LCEvent * event)
 					colOfTrkPulses->getElementAt(i) );
 			
 			updateMap(pulse, sensorMap);
-			// Yes
-/*			if(iterSMap != sensorMap.end() ) 
-			{
-				// Strip in R-Phi
-			 if(stripType == RPhi) 
-				{
-
-      	      // Find if strip already saved in map
-      	      iterChMap = iterSMap->second[STRIPRPHI].find(stripID);
-
-      	      // Yes
-      	      if (iterChMap != iterSMap->second[STRIPRPHI].end() ) {
-
-      	         // Update charge
-      	         iterChMap->second->updateCharge(charge);
-
-      	         // Get MCParticles which contributed and update MCParticles
-                  if (_navigatorPls != NULL) {
-
-                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-
-                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-                     FloatVec::iterator    iterFloatVec = floatVec.begin();
-
-                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
-
-                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-                        float                  weight = *iterFloatVec;
-
-                        iterChMap->second->updateSimHitMap(simHit, weight);
-                     }
-                  }
-      	      }
-
-      	      // No --> create
-      	      else {
-
-                  Signal * signal = new Signal(charge, 0.);
-
-                  // Get MCParticles which contributed
-                  if (_navigatorPls != NULL) {
-
-                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-
-                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-                     FloatVec::iterator    iterFloatVec = floatVec.begin();
-
-                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
-
-                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-                        float                  weight = *iterFloatVec;
-
-                        signal->updateSimHitMap(simHit, weight);
-                     }
-                  }
-
-                  // Save all in map
-      	         iterSMap->second[STRIPRPHI][stripID] = signal;
-      	      }
-      	   }
-
-      	   // Strip in Z
-      	   else if (stripType == Z) {
-
-               // Find if strip already saved in map
-               iterChMap = iterSMap->second[STRIPZ].find(stripID);
-
-               // Yes
-               if (iterChMap != iterSMap->second[STRIPZ].end() ) {
-
-                  // Update charge
-                  iterChMap->second->updateCharge(charge);
-
-                  // Get MCParticles which contributed and update MCParticles
-                  if (_navigatorPls != NULL) {
-
-                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-
-                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-                     FloatVec::iterator    iterFloatVec = floatVec.begin();
-
-                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
-
-                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-                        float                  weight = *iterFloatVec;
-
-                        iterChMap->second->updateSimHitMap(simHit, weight);
-                     }
-                  }
-               }
-
-               // No --> create
-               else {
-
-                  Signal * signal = new Signal(charge, 0.);
-
-                  // Get MCParticles which contributed
-                  if (_navigatorPls != NULL) {
-
-                     LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-                     FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-
-                     LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-                     FloatVec::iterator    iterFloatVec = floatVec.begin();
-
-                     for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
-
-                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-                        float                  weight = *iterFloatVec;
-
-                        signal->updateSimHitMap(simHit, weight);
-                     }
-                  }
-
-                  // Save all in map
-                  iterSMap->second[STRIPZ][stripID] = signal;
-               }
-      	   }
-
-      	   // Report error
-      	   else {
-
-      	      streamlog_out(ERROR) << "cellID1 - problem to identify if strips in Z or R-Phi!!!"
-      	                           << std::endl;
-      	      exit(0);
-      	   }
-
-      	}*/
-      	// No
-/*      	else 
-	{
-		// Strip in R-Phi
-		if(stripType == RPhi) 
-		{
-			// Create map
-			sensorMap[cellID0] = new StripChargeMap[2];
-			// Create signal
-			Signal * signal    = new Signal(charge, 0.);
-			
-			// Get MCParticles which contributed and update signal
-			if(_navigatorPls != NULL) 
-			{
-				LCObjectVec lcObjVec = 
-					_navigatorPls->getRelatedToObjects(pulse);
-				FloatVec floatVec = _navigatorPls->getRelatedToWeights(pulse);
-				
-				LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-				FloatVec::iterator    iterFloatVec = floatVec.begin();
-				
-				for(iterLCObjVec=lcObjVec.begin(); 
-						iterLCObjVec!=lcObjVec.end(); 
-						iterLCObjVec++, iterFloatVec++) 
-				{
-					EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-					float                  weight = *iterFloatVec;
-					signal->updateSimHitMap(simHit, weight);
-				}
-			}
-			
-			// Save all in map
-			sensorMap[cellID0][STRIPRPHI][stripID] = signal;
-		}
-		
-		// Strip in Z
-		else if(stripType == Z) 
-		{
-			// Create map
-			sensorMap[cellID0] = new StripChargeMap[2];
-			// Create signal
-			Signal * signal    = new Signal(charge, 0.);
-			
-			// Get MCParticles which contributed
-			if(_navigatorPls != NULL) 
-			{
-				LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-				FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-				
-				LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-				FloatVec::iterator    iterFloatVec = floatVec.begin();
-				
-				for(iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) 
-				{
-					EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-					float                  weight = *iterFloatVec;
-					
-					signal->updateSimHitMap(simHit, weight);
-				}
-			}
-			
-			// Save all in map
-			sensorMap[cellID0][STRIPZ][stripID] = signal;
-		}
-
-            // Report error
-            else {
-
-               streamlog_out(ERROR) << "cellID1 - problem to identify if strips in Z or R-Phi!!!"
-                                    << std::endl;
-               exit(0);
-            }
-
-      	} // Else*/
 
       } // For - process pulses
-
+for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+{
+std::cout << "----- cellID:" << iterSMap->first << std::endl;
+std::cout << "       - Type: " << STRIPRPHI << std::endl;
+	// Strips in R-Phi
+	for(iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++)
+	{
+std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
+	}
+        // Strips in Z
+std::cout << "       - Type: " << STRIPRPHI << std::endl;
+	for(iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++)
+	{
+std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
+	}
+}
       //
       // Find clusters
       ClsVec clsVec;
       findClus(sensorMap, clsVec);
 
-      // Release memory
-      for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
-
-         // Strips in R-Phi
-         for (iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) delete iterChMap->second;
-
-         // Strips in Z
-         for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) delete iterChMap->second;
-
-         // Release memory
-         delete [] iterSMap->second;
-
-      } // For
-
-      // Clear content
-      sensorMap.clear();
+      // Releasing memory and clearing
+      releaseMap(sensorMap);
 
       //
       // Calculate real + ghost hits from clusters - in global ref. system + create relations to MCParticles
@@ -1400,8 +1196,8 @@ void SiStripClus::calcResolution(short int layerID, double hitTheta, float * cov
 //
 // Method to save the signal 
 //
-// Returns true if everything was fine
-bool SiStripClus::updateMap(const int * TrackerPulseImpl pulse, SensorStripMap & sensorMap )
+// FIXME: Returns true if everything was fine
+void SiStripClus::updateMap(TrackerPulseImpl * pulse, SensorStripMap & sensorMap )
 {
 	// CellID0 encodes layerID, ladderID and sensorID; 
 	// cellID1 encodes strip (in Z or R-Phi)
@@ -1428,31 +1224,30 @@ bool SiStripClus::updateMap(const int * TrackerPulseImpl pulse, SensorStripMap &
 
 	// Find if sensor already saved in map
 	SensorStripMap::iterator iterSMap = sensorMap.find(cellID0);
-	
-	// If not, create map and signal for the sensor
-	if(iterSMap == sensorMap.end() ) 
+	// If not, create map  for the sensor (cellID0)
+	if(iterSMap == sensorMap.end()) 
 	{
 		// Create map
 		sensorMap[cellID0] = new StripChargeMap[2];
-		// Create signal
-		signal    = new Signal(charge, 0.);
+		// And update the iterator
+		iterSMap = sensorMap.find(cellID0);
 	}
-
+	
 	// Find if strip already saved in map
 	StripChargeMap::iterator iterChMap = iterSMap->second[stripType].find(stripID);
-
-	// IF not, create signal, otherwise update
-	if( iterChMap == iterSMap->second[stripType].end())
+	// IF not, create entry for strip, otherwise update
+	if( iterChMap == iterSMap->second[stripType].end() )
 	{
 		signal = new Signal(charge,0.0);
-		// FIXME(V1): Comprobar si funciona igual 
 		iterSMap->second[stripType][stripID] = signal;
+		// And update the iterator
+		iterChMap = iterSMap->second[stripType].find(stripID);
 	}
 	else
 	{
 		iterChMap->second->updateCharge(charge);
 	}
-			
+
 	// Get MCParticles which contributed and update MCParticles
 	if(_navigatorPls != NULL) 
 	{
@@ -1467,29 +1262,43 @@ bool SiStripClus::updateMap(const int * TrackerPulseImpl pulse, SensorStripMap &
 		{
 			EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
 			float                  weight = *iterFloatVec;
-		
-		// FIXME(V1)
-		//	if( signal == 0 )
-		//	{
-				iterChMap->second->updateSimHitMap(simHit, weight);
-		//	}
-		//	else
-		//	{
-		//		signal->updateSimHitMap(simHit, weight);
-		//	}
+			
+			iterChMap->second->updateSimHitMap(simHit, weight);
 		}
 	}
 	
-	//FIXME(V1)
-/*	if( signal != 0 )
-	{
-		// Save all in map
-		iterSMap->second[stripType][stripID] = signal;
-	}*/
 
 	//FIXME CONTROL DE ERRORES
+	//return true;
 }
 
+void SiStripClus::releaseMap( SensorStripMap & sensorMap )
+{
+	// Release memory
+	for(SensorStripMap::iterator iterSMap=sensorMap.begin(); 
+			iterSMap!=sensorMap.end(); iterSMap++) 
+	{
+		//Array contents
+		// Strips in R-Phi
+		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPRPHI].begin(); 
+				iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++)
+		{
+			delete iterChMap->second;
+		}
+		// Strips in Z
+		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPZ].begin(); 
+				iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++)
+		{
+			delete iterChMap->second;
+		}
+		
+		// Release memory for array
+		delete [] iterSMap->second;
+	} 
+
+	// Clearing
+	sensorMap.clear();
+}
 
 // PRINT METHODS
 
