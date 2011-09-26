@@ -85,33 +85,36 @@ int SiStripGeom::encodeStripID(StripType type, int stripID) const
 //
 // Decode strip ID
 //
-void SiStripGeom::decodeStripID(StripType & type, int & stripID, int encodedStripID) const 
+std::pair<StripType,int> SiStripGeom::decodeStripID(const int & encodedStripID) const 
 {
-	// TODO: Posible mejora del algortimo...
+	StripType stype;
+	int stripID;
 
 	// Strip in RPhi
-	if (encodedStripID/STRIPCODRPHI > 0.) 
+	if(encodedStripID/STRIPCODRPHI > 0.) 
 	{
 		stripID = encodedStripID/STRIPCODRPHI - STRIPOFF;
-		type    = RPhi;
+		stype    = RPhi;
 		
-		return;
 	}
 	// Strip in Z
-	if (encodedStripID/STRIPCODZ > 0.) 
+	else if(encodedStripID/STRIPCODZ > 0.) 
 	{
 		stripID = encodedStripID/STRIPCODZ - STRIPOFF;
-		type    = Z;
+		stype    = Z;
 		
-		return;
+	}
+	else
+	{
+		// Error
+		streamlog_out(ERROR) << "SiStripGeom::decodeStripID: "
+			<< encodedStripID
+			<< " - problem to identify if strips in Z or R-Phi!!!"
+			<< std::endl;
+		exit(0);
 	}
 
-	// Error
-	streamlog_out(ERROR) << "SiStripGeom::decodeStripID: "
-		<< encodedStripID
-		<< " - problem to identify if strips in Z or R-Phi!!!"
-		<< std::endl;
-	exit(0);
+	return std::pair<StripType,int>(stype,stripID);
 }
 
 //

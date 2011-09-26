@@ -116,8 +116,9 @@ class RombIntSolver;
 
 namespace sistrip {
 
-#define STRIPRPHI 0      // Const denoting strips in R-Phi
-#define STRIPZ    1      // Const denoting strips in Z
+// FIXME: Use the StripType enumerate
+#define STRIPRPHI RPhi      // Const denoting strips in R-Phi
+#define STRIPZ    Z         // Const denoting strips in Z
 
 #define ROUNDEPS    5.   // Avoid rounding errors - space precision for round. errors in um
 #define SEED    12586    // Random generator initialization

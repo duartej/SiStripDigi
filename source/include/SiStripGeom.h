@@ -88,7 +88,7 @@ class SiStripGeom
 		//!Encode stripID
 		virtual int encodeStripID(StripType type, int stripID) const;
 		//!Decode stripID
-		virtual void decodeStripID(StripType & type, int & stripID, int encodedStripID) const;
+		virtual std::pair<StripType,int> decodeStripID(const int & encodedStripID) const;
 		
 		// LAYER PROPERTIES
 		//!Get number of layers

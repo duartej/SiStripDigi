@@ -296,13 +296,16 @@ void SiStripDigi::processEvent(LCEvent * event)
 			<< std::endl << std::endl;
 	}
 
-	// Go through all collection names and save the one that is defined as an input collection
-	for (ConstStringVec::const_iterator colName = strVec->begin(); colName != strVec->end(); colName++) 
+	// Go through all collection names and save the one that is defined as an input 
+	// collection
+	for(ConstStringVec::const_iterator colName = strVec->begin(); 
+			colName != strVec->end(); colName++) 
 	{
 		if (_inColName == (*colName)) 
 		{
 			// Collection must be of SimTrackerHit type
-			if ( (event->getCollection(*colName))->getTypeName() == LCIO::SIMTRACKERHIT ) 
+			if ( (event->getCollection(*colName))->getTypeName() == 
+					LCIO::SIMTRACKERHIT ) 
 			{
 				// Save collection
 				colOfSimHits = event->getCollection(*colName);
@@ -461,7 +464,8 @@ void SiStripDigi::processEvent(LCEvent * event)
 			transformSimHit(simDigiHit);
 			
 			// Transform magnetic field to local ref. system of a sensor
-			_magField = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, _magField);
+			_magField = _geometry->transformVecToLocal(_currentLayerID, 
+					_currentLadderID, _magField);
 	
 			// Digitize the given hit and get sensor map of strips with total
 			// integrated charge and time when a particle crossed the sensor
@@ -731,10 +735,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	DigiClusterVec eClusterVec;
 	DigiClusterVec hClusterVec;
 
-//std::cout << " SiStripDigi::digitize " << std::endl;
-//std::cout << " Calculate Clusters" << std::endl;
 	calcClusters(simDigiHit, eClusterVec, hClusterVec);
-//std::cout << "--------- Calculate Clusters END ----------" << std::endl;
 	
 	//
 	// Go through all e, resp. h, clusters, perform drift, diffusion and Lorentz shift
@@ -757,7 +758,6 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	{
 		DigiCluster * cluster = (*iterVec);
 
-//std::cout << "----> " << cluster->get3Position() << std::endl;
 
 		// Calculate charge collected by a strip in Z or R-Phi 
 		// (using Shockley-Ramo theorem: dQe = |qClusterE * (d - x) / d|)
@@ -799,19 +799,6 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		double sigmaSqrt2 = diffSigma * sqrt(2.);
 		double primAtA    = 0.5*( 1. + erf( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) );
 		double primAtB    = 0.;
-/*std::cout << " ERF: " << ( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) << std::endl;
-std::cout << "--- ID Min Strip RPhi:" << iMinStripInRPhi << " ID Max Strip RPhi:" 
-	<< iMaxStripInRPhi << " sensorPitch[um] " << sensorPitchInRPhi/um << std::endl;
-std::cout << " Cluster mean position in Y local:" << mean << " in A:" << primAtA 
-	<< " at B:" << primAtB << " ---- " << iMinStripInRPhi*sensorPitchInRPhi
-	<< " sigmasqrt: " << sigmaSqrt2 << std::endl;
-std::cout << " Posicion strip " << iMinStripInRPhi << ": "<<iMinStripInRPhi*sensorPitchInRPhi 
-	<< " Position strip " << iMaxStripInRPhi << ": " <<iMaxStripInRPhi*sensorPitchInRPhi
-	<< std::endl;
-std::cout << " Mean+sigma:" << mean+diffSigma << " Mean-sigma "<< mean-diffSigma << std::endl;
-std::cout << " Mean+3*sigma:" << mean+3*diffSigma << " Mean-sigma "<< mean-3*diffSigma 
-	<< std::endl;*/
-//exit(0);
 		
 		//  Sensor map of strips with total integrated charge and time when 
 		//particle crossed the detector
@@ -832,7 +819,6 @@ std::cout << " Mean+3*sigma:" << mean+3*diffSigma << " Mean-sigma "<< mean-3*dif
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
-//std::cout << " Carga en el strip " << i << " : " << charge << std::endl;
 			
 			// New integration starting point
 			primAtA = primAtB;
@@ -924,8 +910,6 @@ std::cout << " Mean+3*sigma:" << mean+3*diffSigma << " Mean-sigma "<< mean-3*dif
 		shiftLorentz = getHoleLorentzShift(cluster->getPosX());
 		cluster->set3Position( shiftLorentz + Hep3Vector(0., cluster->getPosY(),cluster->getPosZ()) );
 
-//std::cout << "Hole - DriftTime: " << driftTime/ns << " DiffSigma: " << diffSigma/um << " LorentzShift: " << shiftLorentz/um << " Posicion Final:" << cluster->get3Position() 
-//<< " Carga[h]:" << chargeCollect << std::endl; 
 		//
 		// Add diffusion effect and save results as signals (IN Z)
 		//
@@ -942,13 +926,6 @@ std::cout << " Mean+3*sigma:" << mean+3*diffSigma << " Mean-sigma "<< mean-3*dif
 		double sigmaSqrt2 = diffSigma * sqrt(2.);
 		double primAtA    = 0.5*( 1. + erf( (iMinStripInZ*sensorPitchInZ - mean)/sigmaSqrt2) );
 		double primAtB    = 0.;
-/*std::cout << " ERF=" << erf( (iMinStripInZ*sensorPitchInZ - mean)/sigmaSqrt2) << std::endl;
-std::cout << "--- ID Min Strip Z:" << iMinStripInZ << " ID Max Strip Z:" 
-	<< iMaxStripInZ << " sensorPitch[um] " << sensorPitchInZ/um << std::endl;
-std::cout << " Cluster mean position in Y local:" << mean << " in A:" << primAtA 
-	<< " at B:" << primAtB << " ---- " << iMinStripInZ*sensorPitchInZ
-	<< " sigmasqrt: " << sigmaSqrt2 << std::endl;*/
-//exit(0);		
 		
 		//  Sensor map of strips with total integrated charge and time when particle crossed the detector
 		SensorStripMap::iterator iterSMap;
@@ -968,7 +945,6 @@ std::cout << " Cluster mean position in Y local:" << mean << " in A:" << primAtA
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
-//std::cout << " Carga en el strip " << i << ": " << charge << std::endl;
 			
 			// New integration starting point
 			primAtA = primAtB;

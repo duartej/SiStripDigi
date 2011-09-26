@@ -18,19 +18,25 @@ namespace sistrip {
 //
 void Signal::updateSimHitMap(EVENT::SimTrackerHit * simHit, float weight)
 {
-   if (_simHitMap.find(simHit) != _simHitMap.end()) _simHitMap[simHit] += weight;
-   else                                             _simHitMap[simHit]  = weight;
+	if(_simHitMap.find(simHit) != _simHitMap.end())
+	{
+		_simHitMap[simHit] += weight;
+	}
+	else
+	{
+		_simHitMap[simHit]  = weight;
+	}
 }
 
 void Signal::updateSimHitMap(SimTrackerHitMap simHitMap)
 {
-   for (SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
-
-      EVENT::SimTrackerHit * simHit = iterSHM->first;
-      float                  weight = iterSHM->second;
-
-      if (_simHitMap.find(simHit) != _simHitMap.end()) _simHitMap[simHit] += weight;
-      else                                             _simHitMap[simHit]  = weight;
+	for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) 
+	{
+		EVENT::SimTrackerHit * simHit = iterSHM->first;
+		float                  weight = iterSHM->second;
+		
+		if(_simHitMap.find(simHit) != _simHitMap.end()) _simHitMap[simHit] += weight;
+		else                                             _simHitMap[simHit]  = weight;
    }
 }
 

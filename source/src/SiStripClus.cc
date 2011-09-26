@@ -224,159 +224,139 @@ void SiStripClus::processRunHeader(LCRunHeader * run)
 //
 void SiStripClus::processEvent(LCEvent * event)
 {
-
-// Get names of all collections saved in LCIO file
-   ConstStringVec * strVec = event->getCollectionNames();
-
-// Initialize relation navigators
-   _navigatorPls = NULL;
-
-// Initialize
+	// Get names of all collections saved in LCIO file
+	ConstStringVec * strVec = event->getCollectionNames();
+	
+	// Initialize relation navigators
+	_navigatorPls = NULL;
+	
+	// Initialize
 #ifdef ROOT_OUTPUT
-
-   _rootEvtNum = event->getEventNumber();
-
+	_rootEvtNum = event->getEventNumber();
 #endif
 
-//
-// Get TrackerPulse collections and relation to MCParticles collection
-   LCCollection * colOfTrkPulses   = 0;
-
-   // Print header info about collections (for 1. event)
-   if (event->getEventNumber() == 0) {
-      streamlog_out(MESSAGE3) << " "
-	                           << DUNDERL
-                              << DBLUE
-	                           <<"LCCollection(s) processed:"
-	                           << ENDCOLOR
-	                           << std::endl << std::endl;
-      }
-
-   // Go through all collection names
-   for (ConstStringVec::const_iterator colName = strVec->begin(); colName != strVec->end(); colName++) {
-
-      // Tracker pulses
-      if (_inColName == (*colName)) {
-
-         // Collection must be of TrackerPulse type
-         if ( (event->getCollection(*colName))->getTypeName() == LCIO::TRACKERPULSE ) {
-
-            // Save collection
-            colOfTrkPulses = event->getCollection(*colName);
-
-            // Print info
-            if (event->getEventNumber() == 0) {
-               streamlog_out(MESSAGE3) << "  " << *colName
-                                       << std::endl;
-            }
-         }
-         // Collection NOT of TrackerPulse type
-         else {
-
-            streamlog_out(ERROR) << "Required collection: "
-                                 <<_inColName
-                                 << " found, but NOT of TRACKERPULSE type!!!"
-                                 << std::endl;
-            exit(0);
-         }
-      }
-
-      // Relation TrkPulses to SimTrackerHits
-      if ( (!_relColNamePlsToSim.empty()) && (_relColNamePlsToSim == (*colName)) ) {
-
-         // Collection must be of relation type
-         if ( (event->getCollection(*colName))->getTypeName() == LCIO::LCRELATION ) {
-
-            // Save collection into relation navigator
-            _navigatorPls = new LCRelationNavigator(event->getCollection(*colName));
-
-            // Print info
-            if (event->getEventNumber() == 0) {
-               streamlog_out(MESSAGE3) << "  " << *colName
-                                       << std::endl;
-            }
-         }
-         // Collection NOT of relation type
-         else {
-
-            streamlog_out(ERROR) << "Required collection: "
-                                 <<_relColNamePlsToSim
-                                 << " found, but NOT of LCRELATION type!!!"
-                                 << std::endl;
-            exit(0);
-         }
-      }
-   } // For - collection names
-
-   // Input collection NOT found
-   if (colOfTrkPulses == 0) {
-
-      streamlog_out(WARNING) << "Required collection: "
-                             <<_inColName
-                             << " not found!!!"
-                             << std::endl;
-   }
-
-   if ( (!_relColNamePlsToSim.empty()) && (_navigatorPls == NULL) ) {
-
-      streamlog_out(WARNING) << "Required collection: "
-                             <<_relColNamePlsToSim
-                             << " not found!!!"
-                             << std::endl;
-   }
-
-//
-// Print event number
-//   if ( ((event->getEventNumber()+1)%100 == 0) || ((event->getEventNumber()+1) == 1)) {
-//      streamlog_out(MESSAGE3) << DYELLOW
-//	   	                     << "  Processing event: "
-//	                      		<< ENDCOLOR
-//	                      		<< std::setw(5)
-//	                      		<< (event->getEventNumber()+1)
-//	                      		<< std::endl << std::endl;
-//   }
-
-//
-// Process TrackerPulse collections
-   if (colOfTrkPulses != 0) {
-
-      // Initialize variables
-      TrackerPulseImpl * pulse = 0;
-
-      // Sensor map with map of hit strips (corresponding to the given sensor)
-      SensorStripMap sensorMap;
-
-      SensorStripMap::iterator iterSMap;
-      StripChargeMap::iterator iterChMap;
-
-   	// Get number of elements in each collection
-      int nPulses = colOfTrkPulses->getNumberOfElements();
-
-      // Process pulses
-      for (int i=0; i<nPulses; i++) {
-
-      	// Copy the content of collection TrackerPulse to a pulse
-      	pulse = dynamic_cast<TrackerPulseImpl*>( colOfTrkPulses->getElementAt(i) );
-
-      	// CellID0 encodes layerID, ladderID and sensorID; cellID1 encodes strip (in Z or R-Phi)
-      	int       cellID0 = pulse->getCellID0();
-      	int       cellID1 = pulse->getCellID1();
-      	double    charge  = pulse->getCharge()*fC;
-
-      	int       stripID;
-      	StripType stripType;
-
-      	// decode stripID and stripType
-      	_geometry->decodeStripID(stripType, stripID, cellID1);
-
-      	// Find if sensor already saved in map
-      	iterSMap = sensorMap.find(cellID0);
-
-      	// Yes
-      	if (iterSMap != sensorMap.end() ) {
-
-      	   // Strip in R-Phi
-      	   if (stripType == RPhi) {
+	//
+	// Get TrackerPulse collections and relation to MCParticles collection
+	LCCollection * colOfTrkPulses   = 0;
+	
+	// Print header info about collections (for 1. event)
+	if(event->getEventNumber() == 0) 
+	{
+		streamlog_out(MESSAGE3) << " "
+			<< DUNDERL
+			<< DBLUE
+			<<"LCCollection(s) processed:"
+			<< ENDCOLOR
+			<< std::endl << std::endl;
+	}
+	
+	// Go through all collection names
+	for(ConstStringVec::const_iterator colName = strVec->begin(); 
+			colName != strVec->end(); colName++) 
+	{
+		// Tracker pulses
+		if(_inColName == (*colName)) 
+		{
+			// Collection must be of TrackerPulse type
+			if( (event->getCollection(*colName))->getTypeName() 
+					== LCIO::TRACKERPULSE ) 
+			{
+				// Save collection
+				colOfTrkPulses = event->getCollection(*colName);
+				// Print info
+				if (event->getEventNumber() == 0) 
+				{
+					streamlog_out(MESSAGE3) << "  " << *colName
+						<< std::endl;
+				}
+			}
+			// Collection NOT of TrackerPulse type
+			else 
+			{
+				streamlog_out(ERROR) << "Required collection: "
+					<<_inColName
+					<< " found, but NOT of TRACKERPULSE type!!!"
+					<< std::endl;
+				exit(0);
+			}
+		}
+		
+		// Relation TrkPulses to SimTrackerHits
+		if( (!_relColNamePlsToSim.empty()) && (_relColNamePlsToSim == (*colName)) ) 
+		{
+			// Collection must be of relation type
+			if( (event->getCollection(*colName))->getTypeName() 
+					== LCIO::LCRELATION ) 
+			{
+				// Save collection into relation navigator
+				_navigatorPls = new LCRelationNavigator(
+						event->getCollection(*colName));
+				// Print info
+				if(event->getEventNumber() == 0) 
+				{
+					streamlog_out(MESSAGE3) << "  " << *colName
+						<< std::endl;
+				}
+			}
+			// Collection NOT of relation type
+			else 
+			{
+				streamlog_out(ERROR) << "Required collection: "
+					<<_relColNamePlsToSim
+					<< " found, but NOT of LCRELATION type!!!"
+					<< std::endl;
+				exit(0);
+			}
+		}
+	} // For - collection names
+	
+	// Input collection NOT found
+	if(colOfTrkPulses == 0) 
+	{
+		streamlog_out(WARNING) << "Required collection: "
+			<<_inColName
+			<< " not found!!!"
+			<< std::endl;
+	}
+	
+	if( (!_relColNamePlsToSim.empty()) && (_navigatorPls == NULL) ) 
+	{
+		streamlog_out(WARNING) << "Required collection: "
+			<<_relColNamePlsToSim
+			<< " not found!!!"
+			<< std::endl;
+	}
+	
+	//
+	// Process TrackerPulse collections
+	if(colOfTrkPulses != 0) 
+	{
+		// Initialize variables
+		TrackerPulseImpl * pulse = 0;
+		
+		// Sensor map with map of hit strips (corresponding to the given sensor)
+		SensorStripMap sensorMap;
+		
+		SensorStripMap::iterator iterSMap;
+		StripChargeMap::iterator iterChMap;
+		
+		// Get number of elements in each collection
+		int nPulses = colOfTrkPulses->getNumberOfElements();
+		
+		// Process pulses
+		for(int i=0; i<nPulses; i++)
+		{
+			// Copy the content of collection TrackerPulse to a pulse
+			pulse = dynamic_cast<TrackerPulseImpl*>( 
+					colOfTrkPulses->getElementAt(i) );
+			
+			updateMap(pulse, sensorMap);
+			// Yes
+/*			if(iterSMap != sensorMap.end() ) 
+			{
+				// Strip in R-Phi
+			 if(stripType == RPhi) 
+				{
 
       	      // Find if strip already saved in map
       	      iterChMap = iterSMap->second[STRIPRPHI].find(stripID);
@@ -501,71 +481,71 @@ void SiStripClus::processEvent(LCEvent * event)
       	      exit(0);
       	   }
 
-      	}
+      	}*/
       	// No
-      	else {
-
-      	   // Strip in R-Phi
-      	   if (stripType == RPhi) {
-
-      	      // Create map
-      	      sensorMap[cellID0] = new StripChargeMap[2];
-
-      	      // Create signal
-      	      Signal * signal    = new Signal(charge, 0.);
-
-      	      // Get MCParticles which contributed and update signal
-      	      if (_navigatorPls != NULL) {
-
-      	         LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-      	         FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-
-      	         LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-      	         FloatVec::iterator    iterFloatVec = floatVec.begin();
-
-      	         for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
-
-                     EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-                     float                  weight = *iterFloatVec;
-
-                     signal->updateSimHitMap(simHit, weight);
-      	         }
-      	      }
-
-      	      // Save all in map
-               sensorMap[cellID0][STRIPRPHI][stripID] = signal;
-      	   }
-
-      	   // Strip in Z
-      	   else if (stripType == Z) {
-
-      	      // Create map
-               sensorMap[cellID0] = new StripChargeMap[2];
-
-               // Create signal
-               Signal * signal    = new Signal(charge, 0.);
-
-               // Get MCParticles which contributed
-               if (_navigatorPls != NULL) {
-
-                  LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
-                  FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
-
-                  LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
-                  FloatVec::iterator    iterFloatVec = floatVec.begin();
-
-                  for (iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) {
-
-                     EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
-                     float                  weight = *iterFloatVec;
-
-                     signal->updateSimHitMap(simHit, weight);
-                  }
-               }
-
-               // Save all in map
-               sensorMap[cellID0][STRIPZ][stripID] = signal;
-            }
+/*      	else 
+	{
+		// Strip in R-Phi
+		if(stripType == RPhi) 
+		{
+			// Create map
+			sensorMap[cellID0] = new StripChargeMap[2];
+			// Create signal
+			Signal * signal    = new Signal(charge, 0.);
+			
+			// Get MCParticles which contributed and update signal
+			if(_navigatorPls != NULL) 
+			{
+				LCObjectVec lcObjVec = 
+					_navigatorPls->getRelatedToObjects(pulse);
+				FloatVec floatVec = _navigatorPls->getRelatedToWeights(pulse);
+				
+				LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+				FloatVec::iterator    iterFloatVec = floatVec.begin();
+				
+				for(iterLCObjVec=lcObjVec.begin(); 
+						iterLCObjVec!=lcObjVec.end(); 
+						iterLCObjVec++, iterFloatVec++) 
+				{
+					EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+					float                  weight = *iterFloatVec;
+					signal->updateSimHitMap(simHit, weight);
+				}
+			}
+			
+			// Save all in map
+			sensorMap[cellID0][STRIPRPHI][stripID] = signal;
+		}
+		
+		// Strip in Z
+		else if(stripType == Z) 
+		{
+			// Create map
+			sensorMap[cellID0] = new StripChargeMap[2];
+			// Create signal
+			Signal * signal    = new Signal(charge, 0.);
+			
+			// Get MCParticles which contributed
+			if(_navigatorPls != NULL) 
+			{
+				LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+				FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+				
+				LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+				FloatVec::iterator    iterFloatVec = floatVec.begin();
+				
+				for(iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); iterLCObjVec++, iterFloatVec++) 
+				{
+					EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+					float                  weight = *iterFloatVec;
+					
+					signal->updateSimHitMap(simHit, weight);
+				}
+			}
+			
+			// Save all in map
+			sensorMap[cellID0][STRIPZ][stripID] = signal;
+		}
 
             // Report error
             else {
@@ -575,7 +555,7 @@ void SiStripClus::processEvent(LCEvent * event)
                exit(0);
             }
 
-      	} // Else
+      	} // Else*/
 
       } // For - process pulses
 
@@ -1417,6 +1397,100 @@ void SiStripClus::calcResolution(short int layerID, double hitTheta, float * cov
    covMatrix[5] = resInZ/mm * resInZ/mm;
 }
 
+//
+// Method to save the signal 
+//
+// Returns true if everything was fine
+bool SiStripClus::updateMap(const int * TrackerPulseImpl pulse, SensorStripMap & sensorMap )
+{
+	// CellID0 encodes layerID, ladderID and sensorID; 
+	// cellID1 encodes strip (in Z or R-Phi)
+	int       cellID0 = pulse->getCellID0();
+	int       cellID1 = pulse->getCellID1();
+	double    charge  = pulse->getCharge()*fC;			
+	
+	// decode stripID and stripType
+	std::pair<StripType,int> tpIdpair(_geometry->decodeStripID(cellID1));
+	
+	const StripType stripType = tpIdpair.first;
+	const int stripID = tpIdpair.second;
+	
+	// Controlling some errors
+	if( stripType != STRIPZ && stripType != STRIPRPHI )
+	{
+		streamlog_out(ERROR) 
+			<< "cellID1 - problem to identify if strips in Z or R-Phi!!!" 
+			<< std::endl;
+		exit(0);
+	}
+
+	Signal *signal = 0;
+
+	// Find if sensor already saved in map
+	SensorStripMap::iterator iterSMap = sensorMap.find(cellID0);
+	
+	// If not, create map and signal for the sensor
+	if(iterSMap == sensorMap.end() ) 
+	{
+		// Create map
+		sensorMap[cellID0] = new StripChargeMap[2];
+		// Create signal
+		signal    = new Signal(charge, 0.);
+	}
+
+	// Find if strip already saved in map
+	StripChargeMap::iterator iterChMap = iterSMap->second[stripType].find(stripID);
+
+	// IF not, create signal, otherwise update
+	if( iterChMap == iterSMap->second[stripType].end())
+	{
+		signal = new Signal(charge,0.0);
+		// FIXME(V1): Comprobar si funciona igual 
+		iterSMap->second[stripType][stripID] = signal;
+	}
+	else
+	{
+		iterChMap->second->updateCharge(charge);
+	}
+			
+	// Get MCParticles which contributed and update MCParticles
+	if(_navigatorPls != NULL) 
+	{
+		LCObjectVec lcObjVec = _navigatorPls->getRelatedToObjects(pulse);
+		FloatVec    floatVec = _navigatorPls->getRelatedToWeights(pulse);
+		
+		LCObjectVec::iterator iterLCObjVec = lcObjVec.begin();
+		FloatVec::iterator    iterFloatVec = floatVec.begin();
+		
+		for(iterLCObjVec=lcObjVec.begin(); iterLCObjVec!=lcObjVec.end(); 
+				iterLCObjVec++, iterFloatVec++) 
+		{
+			EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(*iterLCObjVec);
+			float                  weight = *iterFloatVec;
+		
+		// FIXME(V1)
+		//	if( signal == 0 )
+		//	{
+				iterChMap->second->updateSimHitMap(simHit, weight);
+		//	}
+		//	else
+		//	{
+		//		signal->updateSimHitMap(simHit, weight);
+		//	}
+		}
+	}
+	
+	//FIXME(V1)
+/*	if( signal != 0 )
+	{
+		// Save all in map
+		iterSMap->second[stripType][stripID] = signal;
+	}*/
+
+	//FIXME CONTROL DE ERRORES
+}
+
+
 // PRINT METHODS
 
 //
@@ -1451,6 +1525,7 @@ void SiStripClus::printProcessorParams() const
    streamlog_out(MESSAGE3) << "  Read-out pitch in Z     is 2x geom. pitch." << std::endl << std::endl;
 
 }
+
 
 //
 // Method printing hit info

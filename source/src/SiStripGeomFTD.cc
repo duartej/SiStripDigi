@@ -219,12 +219,11 @@ std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerH
                 layerid = (~layerid & NBITS_LAYER)+1;
 		layerid += 7;
         }
- 	
 	std::map<std::string,short int> id;
         id["layer"] = (layerid-1);
         id["ladder"]= ladderid-1;
         id["sensor"]= sensorid;
-
+	
 	return id;
 }
 
@@ -318,31 +317,43 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short 
 	const int ysign = (int)(fabs(globalPoint.getY())/globalPoint.getY());
 	const double ysensorCd = ysign*(_ftdLayer->getSensitiveRinner(diskID)*mm)*
 		fabs(sin(phi0));
-/*std::cout << " xsign:" << xsign << " ysign:" << ysign << std::endl;
-std::cout << "\n --- Sensor centroid point: (" << xsensorCd << "," << ysensorCd <<
-	 "," << zsensorback << ")" ;
-std::cout << "  diskID:" << diskID << "(Real ID:" 
-	<< _layerRealID.at(diskID) << ") petalID:" << 
-	petalID << " sensorID:" << sensorID <<	std::endl;*/
 
 	// The (0,0,0) position of LFR
 	CLHEP::Hep3Vector localOrigin(xsensorCd, ysensorCd, zsensorback);
 
 	// Translating the globalPoint to the local Origin
 	localPoint -= localOrigin;
-//std::cout << " --- Punto-Origen" << localPoint << std::endl;
 	
 	// Perform rotation to get the system local
-	localPoint.rotateZ(-zsign*phi0);
+	double rotZangle = -phi0;
+	if( zsign < 0 )
+	{
+		rotZangle = M_PI-phi0;
+	}
+	localPoint.rotateZ(rotZangle);
 	localPoint.rotateY(-zsign*M_PI/2.0);
-//std::cout << " --- Despues de rotar: " << localPoint<<std::endl;;
 
 	// Avoiding X,Y and Z negative values--> displacing from the
         // centroid to the edge
         const double longtrapezoidedge = _ftdLayer->getSensitiveLengthMax(diskID)*mm;
 	localPoint += CLHEP::Hep3Vector(0.0,longtrapezoidedge/2.0,0.0); 
-//std::cout << " --- TOTAL: " << localPoint;
-//std::cout << std::endl;
+	
+	streamlog_out(DEBUG4) << 
+		"============================================\n" 
+		<< "SiStripGeomFTD::transformPointToLocal \n" 
+		<< " Sensor ID (C-vector style): \n "
+		<< "   DISK: "<<diskID<<" PETAL: "<<petalID<<" SENSOR: " << sensorID << "\n"
+		<< "   Petal Phi: " << phi0*180.0/M_PI << "\n"
+		<< std::setprecision(3) 
+		<< " Origen of Local frame [mm]: (" << xsensorCd/mm <<","
+			<< ysensorCd/mm << "," << zsensorback/mm << ")\n"
+		<< " Hit (Global ref. frame) [mm]:" << globalPoint/mm << "\n"
+		<< " Hit (Local ref. frame)  [mm]:" << localPoint/mm << "\n" 
+		<< " Maximum dimensions: x < " << sensorthickness/mm 
+			<<  ", y < " << longtrapezoidedge/mm << ", z < " 
+			<<  _ftdLayer->getSensitiveWidth(diskID)*mm/mm << " [mm]\n"
+		<< "============================================" << std::endl;
+	
 	// Return space point in local ref. system
 	return localPoint;
 }
@@ -356,21 +367,20 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short in
 	// Initialize local vector
 	CLHEP::Hep3Vector localVec(globalVec);
 
-//std::cout << " VECTOR TRANS: " << localVec << " ---> ";
-	
 	const double phi0 = _ftdLayer->getPhiPetalCd(diskID,petalID);
 	// Extract in which half cylinder are
 	int zsign =1;
+	double rotZangle = -phi0;
 	if(diskID > 6)
 	{
 		zsign = -1;
+		rotZangle = M_PI-phi0;
 	}
 	// Perform rotation to get the system local
-	localVec.rotateZ(-zsign*phi0);
+	localVec.rotateZ(rotZangle);
 	localVec.rotateY(-zsign*M_PI/2.0);
 	
 	// Return vector in local ref. system
-//std::cout << localVec << std::endl;
 	return localVec;
 }
 
@@ -382,8 +392,8 @@ CLHEP::HepMatrix SiStripGeomFTD::transformMatxToLocal(short int layerID, short i
 {
 	// Initialize local matrix 3x3 to zero values
 	CLHEP::HepMatrix localMatrix(3,3,0);
-
-   // Initialize rotation matrices: R, R^T (transposition)
+	
+	// Initialize rotation matrices: R, R^T (transposition)
 	CLHEP::HepMatrix rotMatrix(3,3,0);
 	CLHEP::HepMatrix rotMatrixT(3,3,0);
 
@@ -433,18 +443,15 @@ CLHEP::HepMatrix SiStripGeomFTD::transformMatxToLocal(short int layerID, short i
 //
 CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int layerID, short int ladderID, short int sensorID, const CLHEP::Hep3Vector & localPoint)
 {
-   // Initialize global point
-   CLHEP::Hep3Vector globalPoint(localPoint);
+	// Initialize global point
+	CLHEP::Hep3Vector globalPoint(localPoint);
 
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
-
-      // Find (0,0,0) position of local coordinate system
-      CLHEP::Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
+	// Calculate rotation angles
+	double theta = getLadderTheta(layerID);
+	double phi   = getLadderPhi(layerID, ladderID);
+	
+	// Find (0,0,0) position of local coordinate system
+	CLHEP::Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
       localOrigin.rotateZ(+phi);
 
       // Perform translation - to the center of a ladder
@@ -458,16 +465,6 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int layerID, shor
 
       // Perform translation - to the global system
       globalPoint += localOrigin;
-
-   }
-
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
 
    // Return space point in global ref. system
 	return globalPoint;

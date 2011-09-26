@@ -101,6 +101,9 @@ class SiStripClus : public Processor {
 //!Method calculating hit resolution, i.e. covariance matrix
    void calcResolution(short int layerID, double hitTheta, float * covMatrix);
 
+//!Method to update and store the Sensor strip map  
+bool updateMap(const TrackerPulseImpl * pulse, SensorStripMap & sensorMap );
+
 // PRINT METHODS
 
 //!Method printing processor parameters
