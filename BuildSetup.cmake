@@ -21,7 +21,7 @@ SET( ILC_HOME "$ENV{ILCSOFT_HOME}"
     CACHE PATH "Path to ILC Software" FORCE )
     
 # Path to CMake Modules
-SET( CMAKE_MODULE_PATH "/usr/local/ilcsoft/v01-08/CMakeModules/v01-08-01"
+SET( CMAKE_MODULE_PATH "/usr/local/ilcsoft/v01-08/ilcutil/trunk/cmakemodules"
     CACHE PATH "Path to CMake Modules" FORCE )    
 
 # Path to CLHEP, respectively to 'clhep-config'

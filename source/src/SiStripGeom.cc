@@ -326,7 +326,7 @@ double SiStripGeom::getLadderPhi(short int layerID, short int ladderID) const
 //
 // Get ladder rotation - theta angle
 //
-double SiStripGeom::getLadderTheta(short int layerID) const
+/*double SiStripGeom::getLadderTheta(short int layerID) const
 {
    if (_layerTheta.size()>(unsigned short int)layerID) return _layerTheta[layerID];
    else {
@@ -335,7 +335,7 @@ double SiStripGeom::getLadderTheta(short int layerID) const
                            << std::endl;
       exit(0);
    }
-}
+}*/
 
 //
 // Get number of sensors for given ladder
@@ -516,7 +516,8 @@ double SiStripGeom::getStripPosInZ(short int layerID, int stripID) const
 	// Error
 	if( (posZ<0.) || (posZ>getSensorLength(layerID)) ) 
 	{
-		streamlog_out(ERROR) << "SiStripGeom::getStripPosInZ - position out of sensor!!!"
+		streamlog_out(ERROR) 
+			<< "SiStripGeom::getStripPosInZ - position out of sensor!!!"
 			<< std::endl;
 		exit(-1);
 	}
@@ -541,7 +542,8 @@ double SiStripGeom::getStripPosInRPhi(short int layerID, int stripID, double pos
 	// Error
 	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(layerID)) ) 
 	{
-		streamlog_out(ERROR) << "SiStripGeom::getStripPosInRPhi - position out of sensor!!!"
+		streamlog_out(ERROR) 
+			<< "SiStripGeom::getStripPosInRPhi - position out of sensor!!!"
 			<< std::endl;
 		exit(-1);
 	}

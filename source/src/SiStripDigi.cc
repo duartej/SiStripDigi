@@ -234,11 +234,8 @@ void SiStripDigi::init()
 
    _rootFile->cd("");
 
-   _rootELossG4   = new TH1F("ELossG4"     , "G4 - Energy loss in silicon"  , 400, 0., 400.);
-   _rootELossDigi = new TH1F("ELossDigi"   , "Digi - Energy loss in silicon", 400, 0., 400.);
-//   _digihitposX   = new TH1F("digihitposX", "Digi - X position", 300.,-31.,31.);
-//   _digihitposY   = new TH1F("digihitposX", "Digi - Y position", 300.,-31.,31.);
-//   _digihitposZ   = new TH1F("digihitposX", "Digi - Z  position", 300.,-212.,212.);
+   _rootELossG4   = new TH1F("ELossG4"     , "G4 - Energy loss in silicon"  , 100, 0., 1400.);
+   _rootELossDigi = new TH1F("ELossDigi"   , "Digi - Energy loss in silicon", 100, 0., 1400);
 #endif
 
 }
@@ -664,7 +661,6 @@ void SiStripDigi::processEvent(LCEvent * event)
    // Save deposited energy in histograms
    _rootELossG4->Fill(_rootDepEG4/keV);
    _rootELossDigi->Fill(_rootDepEDigi/keV);
-
 #endif
 
    _nEvent++;

@@ -11,8 +11,8 @@ namespace sistrip {
 //
 SimTrackerDigiHit::SimTrackerDigiHit()
 {
-   _cellID     = 0.;
-   _dEdx       = 0.;
+   _cellID0    = 0.;
+   _EDep      = 0.;
    _time       = 0.;
    _particle   = 0;
    _pathLength = 0.;

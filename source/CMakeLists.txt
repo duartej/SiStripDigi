@@ -4,38 +4,30 @@
 #
 #
 #############################################################################
+INCLUDE_DIRECTORIES( BEFORE "./include" )
 
 # require proper c++
 ADD_DEFINITIONS( "-Wall -ansi -pedantic" )
-
-# need long long for int64 for now
-# FIXME: should establish wether we are on a 32bit or 64 bit machine...
 ADD_DEFINITIONS( "-Wno-long-long" )
 
-# include directories
-INCLUDE_DIRECTORIES( ../include )
+
+# definitions
+IF( CMAKE_BUILD_TYPE STREQUAL "Debug" OR
+		CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" )
+	ADD_DEFINITIONS( "-DSISTRIPDIGIDEBUG" )
+ENDIF()
 
 # get list of all source files
-AUX_SOURCE_DIRECTORY( src lib_srcs )
+AUX_SOURCE_DIRECTORY( ./src library_sources )
 
-# create library with the list of library sources
-ADD_LIBRARY( lib_${PROJECT_NAME} ${lib_srcs} )
+# include directories
+INCLUDE_DIRECTORIES( ./include )
+INSTALL_DIRECTORY( ./include DESTINATION include FILES_MATCHING PATTERN "*.h" )
 
-# create symbolic lib target for calling target lib_XXX
-ADD_CUSTOM_TARGET( lib DEPENDS lib_${PROJECT_NAME} )
 
-# change lib_target properties
-SET_TARGET_PROPERTIES( lib_${PROJECT_NAME} PROPERTIES
-    # create *nix style library versions + symbolic links
-    VERSION ${GEAR_VERSION}
-    SOVERSION ${GEAR_SOVERSION}
-    # allow building static and shared libraries on the same build tree
-    CLEAN_DIRECT_OUTPUT 1
-    # avoid conflicts between library and binary target names
-    OUTPUT_NAME gearxml )
+ADD_SHARED_LIBRARY( SiStripDigi ${library_sources} )
+INSTALL_SHARED_LIBRARY( SiStripDigi DESTINATION lib )
+TARGET_LINK_LIBRARIES( SiStripDigi ${CMAKE_DL_LIBS} )
 
-# install library
-INSTALL( TARGETS lib_${PROJECT_NAME} DESTINATION lib PERMISSIONS
-        OWNER_READ OWNER_WRITE OWNER_EXECUTE
-        GROUP_READ GROUP_EXECUTE
-        WORLD_READ WORLD_EXECUTE )
+#DISPLAY_STD_VARIABLES()
+

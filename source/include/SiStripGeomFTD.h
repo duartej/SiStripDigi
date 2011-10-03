@@ -109,6 +109,10 @@ class SiStripGeomFTD: public SiStripGeom
 		//! That sensor are the faced to IP on each petal (in the current design)
 		int getStripIDInRPhi(short int diskID, double posRPhi, double posZ ) const;
 
+		//!Method impossed by consistent with the mother class.
+		//!The FTD sensors are all perpendicular to the beam axis
+		double getLadderTheta(short int diskID) const { return M_PI/2.0;}
+
 		// PRINT METHODS
 		//!Method printing general Gear parameters
 		virtual void printGearParams() const;
