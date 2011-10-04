@@ -394,27 +394,24 @@ void SiStripDigi::processEvent(LCEvent * event)
 			float  hitPath     = simHit->getPathLength() * mm;
 			
 			// Hit geom. info
-			// NEW (J. Duarte): Added the try-catch trying to by-pass if there isn't
-			//                  the codification done at Mokka level. Possibly this
-			//                  lines can be deleted later. If not codified, it will
-			//                  extract the hit ID hardcoded in the SiStripGeom interface
-			
-			short int hitLayerID;
-			short int hitLadderID;
-			short int hitSensorID;
-			try
+			// Recall: codification in Mokka/G4:
+			//         Layer: 1,...7
+			//         Side:  -1  +1
+			//         Petal: 1...16
+			//         Sensor: 1 2 3 4 
+			//---- The notation used in this code:
+			//     Layer:  0,...., 6 (Positive Z)
+			//             7,....,13 (Negative Z)
+			//     Petal:  0,....,15
+			//     Sensor: 1 2 3 4 
+			short int hitLayerID  = cellIDDec(simHit)["layer"]-1;
+			if( cellIDDec(simHit)["side"] < 0 )
 			{
-				hitLayerID  = _geometry->getLayerIDCTypeNo(cellIDDec(simHit)["layer"]);
-				hitLadderID = cellIDDec(simHit)["ladder"];
-				hitSensorID = cellIDDec(simHit)["sensor"];
+				hitLayerID += 7;
 			}
-			catch(lcio::Exception &e)
-			{
-				hitLayerID  = _geometry->cellIDDecProv(simHit)["layer"];
-				hitLadderID = _geometry->cellIDDecProv(simHit)["ladder"];
-				hitSensorID = _geometry->cellIDDecProv(simHit)["sensor"];
-			}
-			//DEBUG
+			short int hitLadderID = cellIDDec(simHit)["module"]-1;
+			short int hitSensorID = cellIDDec(simHit)["sensor"];
+			//DEBUG -- 
 			if( abs(_geometry->getLayerRealID(hitLayerID)) < 3 )
 			{
 				continue;

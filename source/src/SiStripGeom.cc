@@ -141,10 +141,9 @@ int SiStripGeom::getLayerRealID(short int layerID) const
 //
 short int SiStripGeom::getLayerIDCTypeNo(int realLayerID) const
 {
-std::cout << realLayerID << std::endl;
 	for (unsigned int i=0; i<_layerRealID.size(); i++) 
 	{
-		if (realLayerID == _layerRealID[i]) 
+		if(realLayerID == _layerRealID[i]) 
 		{
 			return i;
 		}
