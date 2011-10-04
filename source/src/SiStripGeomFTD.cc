@@ -192,6 +192,8 @@ void SiStripGeomFTD::initGearParams()
 			_sensorNStripsInZ.end());
 }
 
+
+// FIXME: TO BE DEPRECATED!!
 std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerHit * & simHit)
 {
 	// Encoded disks: 0,...,6  positives
@@ -370,7 +372,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short in
 	// Extract in which half cylinder are
 	int zsign =1;
 	double rotZangle = -phi0;
-	if(diskID > 6) //FIXME: HARDCODED
+	if(diskID > _ftdLayer->getNLayers()/2) //FIXME: Check is correct
 	{
 		zsign = -1;
 		rotZangle = M_PI-phi0;
@@ -465,10 +467,8 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 	const double xlocalCd = 0.0; // Already in the back face_ftdLayer->getSensitiveThickness(diskID)*mm;
 	const double ylocalCd = _ftdLayer->getSensitiveLengthMax(diskID)/2.0*mm;
 	const double zlocalCd = 0.0; // already in the low edge of the petal (see ysensorCd)
-/*std::cout << " x_c:" << xlocalCd/mm << " y_c:" << ylocalCd/mm << " z_c:" << zlocalCd/mm << std::endl;
-std::cout << " Antes de rotar Hit local:" << globalPoint/mm<< std::endl;*/
+	
 	globalPoint -= CLHEP::Hep3Vector(xlocalCd,ylocalCd,zlocalCd);
-//std::cout << " Respecto centro rotado:" << globalPoint/mm<< std::endl;
 
 	// Perform rotation - with respect to the local centre of a ladder
 	globalPoint.rotateY(zsign*theta);
@@ -502,8 +502,6 @@ std::cout << " Antes de rotar Hit local:" << globalPoint/mm<< std::endl;*/
 		<< " Hit (Global ref. frame) [mm]:" << globalPoint/mm << "\n"
 		<< " Hit (Local ref. frame)  [mm]:" << localPoint/mm << "\n" 
 		<< "============================================" << std::endl;
-
-	//transformPointToLocal(diskID,petalID,sensorID,globalPoint);
 
 	// Return space point in global ref. system
 	return globalPoint;

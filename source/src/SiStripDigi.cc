@@ -389,7 +389,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 				*(simHit->getPosition()+1) * mm,  *(simHit->getPosition()+2) * mm};
 			float  hitMom[3]   = {*(simHit->getMomentum()) * GeV, 
 				*(simHit->getMomentum()+1) * GeV, *(simHit->getMomentum()+2) * GeV};
-			float  hitdEdx     = simHit->getdEdx() * GeV;
+			float  hitdEdx     = simHit->getEDep() * GeV;
 			float  hitTime     = simHit->getTime() * ns;
 			float  hitPath     = simHit->getPathLength() * mm;
 			
@@ -431,7 +431,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 			simDigiHit->setdEdx(hitdEdx);
 			simDigiHit->setTime(hitTime);
 			simDigiHit->setPathLength(hitPath);
-			simDigiHit->setCellID(hitCellID);
+			simDigiHit->setCellID0(hitCellID);
 			simDigiHit->setLayerID(hitLayerID);
 			simDigiHit->setLadderID(hitLadderID);
 			simDigiHit->setSensorID(hitSensorID);
@@ -448,12 +448,6 @@ void SiStripDigi::processEvent(LCEvent * event)
 			// Set magnetic field
 			_magField        = _geometry->get3MagField();
 			
-/*			std::cout << " hitCellID= " << hitCellID;
-			  std::cout << " Layer= " << _currentLayerID;
-			  std::cout << " Petal= " << _currentLadderID;
-			  std::cout << " Sensor=" << _currentSensorID << std::endl;
-			  std::cout << " sensorThick=" << _sensorThick;
-			  std::cout << " Magnetic Field=" << _magField/T << std::endl;*/
 			// Transform hit to local ref. system of a sensor
 			transformSimHit(simDigiHit);
 			
@@ -1054,7 +1048,7 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 #ifdef ROOT_OUTPUT_LAND
 	
 	// Update info
-	_rootDepEG4 += hit->getdEdx();
+	_rootDepEG4 += hit->getEDep();
 #endif
 	// Decide if particle is low-energy --> Geant 4 Landau fluctuations used in 
 	//low energy regime
@@ -1079,7 +1073,7 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 		// Low energy regime --> use Geant4 info and distribute it uniformly
 		else
 		{
-			eLoss = hit->getdEdx()/nClusters;
+			eLoss = hit->getEDep()/nClusters;
 		}
 
 #ifdef ROOT_OUTPUT_LAND
@@ -1092,7 +1086,7 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 		eCluster = new DigiCluster(-1, hit->getTime(), eLoss,
 				hit->get3PrePosition() + (i+0.5)*clusterStep,
 				hit->getLayerID()   , hit->getLadderID(),
-				hit->getSensorID()  , hit->getCellID(),
+				hit->getSensorID()  , hit->getCellID0(),
 				hit->getMCParticle(), hit->getSimTrackerHit());
 		eClusterVec.push_back(eCluster);
 		
@@ -1100,7 +1094,7 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 		hCluster = new DigiCluster(+1, hit->getTime(), eLoss,
 				hit->get3PrePosition() + (i+0.5)*clusterStep,
 				hit->getLayerID()   , hit->getLadderID(),
-				hit->getSensorID()  , hit->getCellID(),
+				hit->getSensorID()  , hit->getCellID0(),
 				hit->getMCParticle(), hit->getSimTrackerHit());
 		hClusterVec.push_back(hCluster);
 	}
@@ -1447,6 +1441,7 @@ void SiStripDigi::genNoise(SensorStripMap & sensorMap)
 	} // For
 }
 
+
 //
 // Method transforming given SimTrackerHit into local ref. system of each sensor, where
 // the system is positioned such as x, y and z coordinates are always positive;
@@ -1485,7 +1480,8 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	Hep3Vector locPosPosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPosPosition);
 	Hep3Vector locMomentum    = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, globMomentum);
-	
+
+	// FIXME: CHECK THE OTHER COORDENATES
 	// Avoid preStep rounding errors in z
 	if(locPrePosition.getX() < 0.) // FIXME: COnvert it to a function
 	{
@@ -1826,7 +1822,7 @@ void SiStripDigi::printHitInfo( std::string info, const SimTrackerDigiHit * hit)
 	streamlog_out(MESSAGE2) << std::fixed
 		<< std::setprecision(1)
 		<< "    Hit:"
-		<< " DepE [keV]: "     << hit->getdEdx()/keV
+		<< " DepE [keV]: "     << hit->getEDep()/keV
 		<< std::setprecision(3)
 		<< std::setiosflags(std::ios::showpos)
 		<< " Pos X [mm]: " << (hit->getPreX() + hit->getPosX())/2./mm
