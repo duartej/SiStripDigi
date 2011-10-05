@@ -1113,7 +1113,7 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 		trkHit->setType(layerID + 201);
 		trkHit->setPosition(posLCIO);
       trkHit->setCovMatrix(covLCIO);
-      trkHit->setdEdx(totalCharge / e); // in electrons
+      trkHit->setEDep(totalCharge / e); // in electrons
       trkHit->setTime(0.); // NOT IMPLEMENTED YET
 
       // Set simTrkHits which contributed & find hit with highest weight
