@@ -170,7 +170,8 @@ class SiStripGeom
 
 		//!Transform given vector from global ref. system to local ref. system (sensor)
 		virtual CLHEP::Hep3Vector transformVecToLocal(short int layerID, 
-				short int ladderID, const CLHEP::Hep3Vector & vec) = 0;
+				short int ladderID, short int sensorID,
+				const CLHEP::Hep3Vector & vec) = 0;
 
 		//!Transform given matrix from global ref. system to local ref. system (sensor)
 		virtual CLHEP::HepMatrix transformMatxToLocal(short int layerID, 
@@ -184,7 +185,8 @@ class SiStripGeom
 
 		//!Transform given vector from local ref. system (sensor) to global ref. system
 		virtual CLHEP::Hep3Vector transformVecToGlobal(short int layerID, 
-				short int ladderID, const CLHEP::Hep3Vector & vec) = 0;
+				short int ladderID, short int sensorID, 
+				const CLHEP::Hep3Vector & vec) = 0;
 
 		//!Transform given diagonal matrix from local ref. system (sensor) to global ref. system
 		virtual CLHEP::HepMatrix transformMatxToGlobal(short int layerID, 

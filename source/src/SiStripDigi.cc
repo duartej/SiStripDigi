@@ -453,7 +453,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 			
 			// Transform magnetic field to local ref. system of a sensor
 			_magField = _geometry->transformVecToLocal(_currentLayerID, 
-					_currentLadderID, _magField);
+					_currentLadderID, _currentSensorID, _magField);
 	
 			// Digitize the given hit and get sensor map of strips with total
 			// integrated charge and time when a particle crossed the sensor
@@ -1475,11 +1475,14 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	Hep3Vector globPosPosition = simDigiHit->get3PosPosition();
 	Hep3Vector globMomentum    = simDigiHit->get3Momentum();
 	// Hit local preStep, resp. posStep, positiona and momentum
+	streamlog_out(DEBUG4) << "-- PRE-STEP Point" << std::endl;
 	Hep3Vector locPrePosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPrePosition);
+	streamlog_out(DEBUG4) << "-- POST-STEP Point" << std::endl;
 	Hep3Vector locPosPosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPosPosition);
-	Hep3Vector locMomentum    = _geometry->transformVecToLocal(_currentLayerID, _currentLadderID, globMomentum);
+	Hep3Vector locMomentum    = _geometry->transformVecToLocal(_currentLayerID, 
+			_currentLadderID, _currentSensorID, globMomentum);
 
 	// FIXME: CHECK THE OTHER COORDENATES
 	// Avoid preStep rounding errors in z

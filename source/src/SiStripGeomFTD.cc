@@ -250,23 +250,22 @@ double SiStripGeomFTD::getLadderOffsetX(const short int & layerID) const
 //  - the electric drift field is oriented in the negative direction
 //    of the X-axis
 //  - all the hits inside a sensors have positive local coordinates
-//  - the strips collecting electrons (Single Side as Double side sensors)
-//    are faced to the IP 
-//  - the strips collecting electrons are in the plane X=thickness sensor (the electron
-//    are collected by the called RPhi strips which are oriented in Z-direction).
-// These requerimemts make placing the LRF in the plane farest to the IP (back face), but 
-// still give us two choices: 
+//  - the strips collecting holes (Single Side as Double side sensors)
+//    are faced to the IP
+//  - the strips collecting holes are in the sensor plane X=0 (the holes
+//    are collected by the strips oriented in Z-direction).
+// These requerimemts make placing the LRF:
 //
-//                             X-------
+//                             --------
+//                             |      |              Face near IP
+//    1 and 2 sensors           |    |                
+//                               |__| X <--- 
+//
+//
+//                             --------
 //                             |      |
-//    Z-Positives disks         |    |
-//                               |__| X <--- chosen
-//
-//
-//                             -------X
-//                             |      |
-//    Z-Negative disks          |    |
-//                  chosen --> X |__|  
+//    3 and 4 sensors           |    |               Face far IP
+//                        ---> X |__|  
 //
 
 
@@ -282,33 +281,21 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short 
 	// Phi Angle of the Petal (on the centroid of the petal with respect the x-axis)
 	const double phi0 = _ftdLayer->getPhiPetalCd(diskID,petalID);
 	
-	//
-        // The local ref. frame (LRF') is defined positive and with
-        // the unitary vectors as
-        //    x'=direction of the electric field of the IP faced sensoras.
-        //       The electric drift field is negative
-        //       (for all faced sensors, the global Z-axis)
-        //    y'=paralel to the RPhi (local) oriented strips (paralel to the 
-        //       smallest dimension (width) of the petal)
-        //    z'=paralel to the Z (local) oriented strips (paralel to the 
-        //       largest dimension (length) of the petal)
-	// Local ref. system it is defined in a way as the X,Y,Z 
-	// of a hit is always positive in this frame. So, we choose the 
-	// (0,0,0) in this local frame correspond to the point
-	// remaining in the the trapezoid's smallest side and
-        // in the back face w.r.t. the IP.
-        //
-	
 	// 
-	// RECALL: ftd gear have the convention mm (distance)
+	// RECALL: ftd gear have the convention mm (distance), here we have cm
 	// 
 
-	// Extract the Z of the sensor
-	const double zsensor = _ftdLayer->getSensitiveZposition(diskID,petalID,sensorID)*mm;
-	int zsign = (int)(zsensor/fabs(zsensor));
+	// Extract the Z of the sensor: diferent position depending the sensor
+	const double zsensorCd = _ftdLayer->getSensitiveZposition(diskID,petalID,sensorID)*mm;
+	const int zsign = (int)(zsensorCd/fabs(zsensorCd));
 	const double sensorthickness = _ftdLayer->getSensitiveThickness(diskID)*mm;
-	// Displacing to the backed the IP face
-	const double zsensorback = zsensor+zsign*sensorthickness/2.0;
+	// Sensor 3 and 4: Displacing to the trapezoid farest the IP
+	double zsensor = zsensorCd+zsign*sensorthickness/2.0;
+	// Sensor 1 and 2: Displacing to the trapezoid facing the IP
+	if( sensorID < 3 )
+	{
+		zsensor = zsensorCd-zsign*sensorthickness/2.0;
+	}
 	
 	// And the X and Y CentroiD position: over the smallest side of the trapezoid
 	const int xsign = (int)(fabs(globalPoint.getX())/globalPoint.getX());
@@ -320,19 +307,33 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short 
 		fabs(sin(phi0));
 
 	// The (0,0,0) position of LFR
-	CLHEP::Hep3Vector localOrigin(xsensorCd, ysensorCd, zsensorback);
+	CLHEP::Hep3Vector localOrigin(xsensorCd, ysensorCd, zsensor);
 
 	// Translating the globalPoint to the local Origin
 	localPoint -= localOrigin;
 	
-	// Perform rotation to get the system local
+	// Perform rotation to get the system local: 
+	//  Z-positives sensors 1,2 |
+	//  Z-negatives sensors 3,4 |-- Same transformation
+	//
+	//  Z-positives sensors 3,4 | ---> La antigua
+	//  Z-negatives sensors 1,2 |-- Same transformation
 	double rotZangle = -phi0;
-	if( zsign < 0 )
+	double rotYangle = -M_PI/2.0;
+	if( (sensorID < 3 && zsign > 0) || 
+			(sensorID > 2 && zsign < 0) )
+	{
+		rotZangle = M_PI-phi0;
+		rotYangle = M_PI/2.0;
+	}
+	localPoint.rotateZ(rotZangle);
+	localPoint.rotateY(rotYangle);
+	/*if( zsign < 0 )
 	{
 		rotZangle = M_PI-phi0;
 	}
 	localPoint.rotateZ(rotZangle);
-	localPoint.rotateY(-zsign*M_PI/2.0);
+	localPoint.rotateY(-zsign*M_PI/2.0);*/
 
 	// Avoiding X,Y and Z negative values--> displacing from the
         // centroid to the edge
@@ -347,7 +348,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short 
 		<< "   Petal Phi: " << phi0*180.0/M_PI << "\n"
 		<< std::setprecision(3) 
 		<< " Origen of Local frame [mm]: (" << xsensorCd/mm <<","
-			<< ysensorCd/mm << "," << zsensorback/mm << ")\n"
+			<< ysensorCd/mm << "," << zsensor/mm << ")\n"
 		<< " Hit (Global ref. frame) [mm]:" << globalPoint/mm << "\n"
 		<< " Hit (Local ref. frame)  [mm]:" << localPoint/mm << "\n" 
 		<< " Maximum dimensions: x < " << sensorthickness/mm 
@@ -363,23 +364,35 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short 
 // Method transforming given vector from global ref. system to local ref. system
 // (parameters: layerID, ladderID, sensorID and vector in global ref. system)
 //
-CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short int petalID, const CLHEP::Hep3Vector & globalVec)
+CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short int petalID,
+		short int sensorID, const CLHEP::Hep3Vector & globalVec)
 {
 	// Initialize local vector
 	CLHEP::Hep3Vector localVec(globalVec);
 
 	const double phi0 = _ftdLayer->getPhiPetalCd(diskID,petalID);
-	// Extract in which half cylinder are
-	int zsign =1;
+	// Extract z-sign and 
+	const int realLayerID = getLayerRealID(diskID);
+	const int zsign = abs(realLayerID)/realLayerID;
+	// Sensors 3,4 z-positive and 1,2 z-negative
 	double rotZangle = -phi0;
-	if(diskID > _ftdLayer->getNLayers()/2) //FIXME: Check is correct
+	double rotYangle = -M_PI/2.0;
+	// Sensors 1,2 z-positive and 3,4 z-negative
+	if( (sensorID < 3 && zsign > 0) || 
+			(sensorID > 2 && zsign < 0) )
 	{
-		zsign = -1;
+		rotZangle = M_PI-phi0;
+		rotYangle = M_PI/2.0;
+	}
+	localVec.rotateZ(rotZangle);
+	localVec.rotateY(rotYangle);
+	/*if(zsign < 0)
+	{
 		rotZangle = M_PI-phi0;
 	}
 	// Perform rotation to get the system local
 	localVec.rotateZ(rotZangle);
-	localVec.rotateY(-zsign*M_PI/2.0);
+	localVec.rotateY(-zsign*M_PI/2.0);*/
 	
 	// Return vector in local ref. system
 	return localVec;
@@ -453,13 +466,20 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 	double phi   = getLadderPhi(diskID, petalID);
 	
 	// Taking account of the z-side
-	int zsign = 1;
+	const int realLayerID = getLayerRealID(diskID);
+	const int zsign = abs(realLayerID)/realLayerID;
 	double rotZangle = -phi;
-	if(diskID > _ftdLayer->getNLayers()/2) //FIXME: Check is correct
+	double rotYangle = -M_PI/2.0;
+	if( (sensorID < 3 && zsign > 0) || 
+			(sensorID > 2 && zsign < 0) )
 	{
-		zsign = -1;
 		rotZangle = M_PI-phi;
+		rotYangle = M_PI/2.0;
 	}
+	/*if(zsign < 0)
+	{
+		rotZangle = M_PI-phi;
+	}*/
 	
 	// Perform translation - to the center of a petal (in local frame)
 	// Note that the center of the petal we decide defining in the back face
@@ -478,14 +498,26 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 	
 	// Find (0,0,0) position of local coordinate system (in global coord.)
 	// Extract the Z of the sensor
-	const double zsensor = _ftdLayer->getSensitiveZposition(diskID,petalID,sensorID)*mm;
+	const double zsensorCd = _ftdLayer->getSensitiveZposition(diskID,petalID,sensorID)*mm;
 	const double sensorthickness = _ftdLayer->getSensitiveThickness(diskID)*mm;
-	// Displacing to the backed the IP face
-	const double zsensorback = zsensor+zsign*sensorthickness/2.0;
+	// Sensor 3 and 4: Displacing to the trapezoid farest the IP
+	double zsensor = zsensorCd-zsign*sensorthickness/2.0;
+	// Sensor 1 and 2: Displacing to the trapezoid facing the IP
+	if( sensorID < 3 )
+	{
+		zsensor = zsensorCd+zsign*sensorthickness/2.0;
+	}
+	/* OLD
+	// Sensors 3 and 4: Displacing to the backed the IP face
+	double zsensorback = zsensor+zsign*sensorthickness/2.0;
+	if( sensorID < 3 )
+	{
+		zsensorback = zsensor-zsign*sensorthickness/2.0;
+	} END OLD*/
 	// And the X and Y CentroiD position: over the smallest side of the trapezoid
 	const double xsensorCd = _ftdLayer->getSensitiveRinner(diskID)*mm*cos(phi);
 	const double ysensorCd = _ftdLayer->getSensitiveRinner(diskID)*mm*sin(phi);
-	CLHEP::Hep3Vector localOrigin(xsensorCd,ysensorCd,zsensorback);
+	CLHEP::Hep3Vector localOrigin(xsensorCd,ysensorCd,zsensor);
 	
 	// Perform translation - to the global system
 	globalPoint += localOrigin;
@@ -498,11 +530,12 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 		<< "   Petal Phi: " << phi*180.0/M_PI << "\n"
 		<< std::setprecision(3) 
 		<< " Origen of Local frame [mm]: (" << xsensorCd/mm <<","
-			<< ysensorCd/mm << "," << zsensorback/mm << ")\n"
+			<< ysensorCd/mm << "," << zsensor/mm << ")\n"
 		<< " Hit (Global ref. frame) [mm]:" << globalPoint/mm << "\n"
 		<< " Hit (Local ref. frame)  [mm]:" << localPoint/mm << "\n" 
 		<< "============================================" << std::endl;
-
+	//FIXME: DEBUG BORRAR
+	transformPointToLocal(diskID,petalID,sensorID,globalPoint);
 	// Return space point in global ref. system
 	return globalPoint;
 }
@@ -512,16 +545,29 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 // (parameters: layerID, ladderID, sensorID and vector in local ref. system)
 //
 CLHEP::Hep3Vector SiStripGeomFTD::transformVecToGlobal(short int diskID, short int petalID, 
-		const CLHEP::Hep3Vector & localVec)
+		short int sensorID, const CLHEP::Hep3Vector & localVec)
 {
 	// Initialize global vector
 	CLHEP::Hep3Vector globalVec(localVec);
 
 	
 	// Calculate rotation angles
-	double theta = getLadderTheta(diskID);
+	double theta = getLadderTheta(diskID); // ALWAYS PI/2
 	double phi   = getLadderPhi(diskID, petalID);
 	
+	const int realLayerID = getLayerRealID(diskID);
+	const int zsign = abs(realLayerID)/realLayerID;
+	double rotZangle = -phi;
+	double rotYangle = -theta;
+	if( (sensorID < 3 && zsign > 0) || 
+			(sensorID > 2 && zsign < 0) )
+	{
+		rotZangle = M_PI-phi;
+		rotYangle = theta;
+	}
+	globalVec.rotateY(-rotYangle);
+	globalVec.rotateZ(-rotZangle);
+	/*OLD 
 	// Taking account of the z-side
 	int zsign = 1;
 	double rotZangle = -phi;
@@ -533,7 +579,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToGlobal(short int diskID, short i
 	
 	// Perform rotation - to the center of a ladder
 	globalVec.rotateY(zsign*theta);
-	globalVec.rotateZ(-rotZangle);
+	globalVec.rotateZ(-rotZangle);*/
 	
 	// Return vector in global ref. system
 	return globalVec;
