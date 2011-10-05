@@ -328,12 +328,6 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToLocal(short int diskID, short 
 	}
 	localPoint.rotateZ(rotZangle);
 	localPoint.rotateY(rotYangle);
-	/*if( zsign < 0 )
-	{
-		rotZangle = M_PI-phi0;
-	}
-	localPoint.rotateZ(rotZangle);
-	localPoint.rotateY(-zsign*M_PI/2.0);*/
 
 	// Avoiding X,Y and Z negative values--> displacing from the
         // centroid to the edge
@@ -386,13 +380,6 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short in
 	}
 	localVec.rotateZ(rotZangle);
 	localVec.rotateY(rotYangle);
-	/*if(zsign < 0)
-	{
-		rotZangle = M_PI-phi0;
-	}
-	// Perform rotation to get the system local
-	localVec.rotateZ(rotZangle);
-	localVec.rotateY(-zsign*M_PI/2.0);*/
 	
 	// Return vector in local ref. system
 	return localVec;
@@ -404,6 +391,10 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToLocal(short int diskID, short in
 //
 CLHEP::HepMatrix SiStripGeomFTD::transformMatxToLocal(short int layerID, short int ladderID, const CLHEP::HepMatrix & globalMatrix)
 {
+	// FIXME: NOT DONE YET
+	std::cout << "SiStripGeomFTD::transformMatxToLocal -- METHOD NOT IMPLEMENTED" 
+		<< std::endl;
+	exit(0);
 	// Initialize local matrix 3x3 to zero values
 	CLHEP::HepMatrix localMatrix(3,3,0);
 	
@@ -469,17 +460,13 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 	const int realLayerID = getLayerRealID(diskID);
 	const int zsign = abs(realLayerID)/realLayerID;
 	double rotZangle = -phi;
-	double rotYangle = -M_PI/2.0;
+	double rotYangle = -theta;
 	if( (sensorID < 3 && zsign > 0) || 
 			(sensorID > 2 && zsign < 0) )
 	{
 		rotZangle = M_PI-phi;
-		rotYangle = M_PI/2.0;
+		rotYangle = theta;
 	}
-	/*if(zsign < 0)
-	{
-		rotZangle = M_PI-phi;
-	}*/
 	
 	// Perform translation - to the center of a petal (in local frame)
 	// Note that the center of the petal we decide defining in the back face
@@ -491,7 +478,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 	globalPoint -= CLHEP::Hep3Vector(xlocalCd,ylocalCd,zlocalCd);
 
 	// Perform rotation - with respect to the local centre of a ladder
-	globalPoint.rotateY(zsign*theta);
+	globalPoint.rotateY(-rotYangle);
 	globalPoint.rotateZ(-rotZangle);
 	// Now we have the vector in global coordinates from the center of the petal
 	// to the hit 
@@ -534,8 +521,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 		<< " Hit (Global ref. frame) [mm]:" << globalPoint/mm << "\n"
 		<< " Hit (Local ref. frame)  [mm]:" << localPoint/mm << "\n" 
 		<< "============================================" << std::endl;
-	//FIXME: DEBUG BORRAR
-	transformPointToLocal(diskID,petalID,sensorID,globalPoint);
+	
 	// Return space point in global ref. system
 	return globalPoint;
 }
@@ -567,19 +553,6 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToGlobal(short int diskID, short i
 	}
 	globalVec.rotateY(-rotYangle);
 	globalVec.rotateZ(-rotZangle);
-	/*OLD 
-	// Taking account of the z-side
-	int zsign = 1;
-	double rotZangle = -phi;
-	if(diskID > _ftdLayer->getNLayers()/2) //FIXME: Check is correct
-	{
-		zsign = -1;
-		rotZangle = M_PI-phi;
-	}
-	
-	// Perform rotation - to the center of a ladder
-	globalVec.rotateY(zsign*theta);
-	globalVec.rotateZ(-rotZangle);*/
 	
 	// Return vector in global ref. system
 	return globalVec;
@@ -591,6 +564,10 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformVecToGlobal(short int diskID, short i
 //
 CLHEP::HepMatrix SiStripGeomFTD::transformMatxToGlobal(short int layerID, short int ladderID, const CLHEP::HepMatrix & localMatrix)
 {
+	// FIXME: NOT DONE YET
+	std::cout << "SiStripGeomFTD::transformMatxToGlobal -- METHOD NOT IMPLEMENTED" 
+		<< std::endl;
+	exit(0);
    // Initialize local matrix 3x3 to zero values
    CLHEP::HepMatrix globalMatrix(3,3,0);
 

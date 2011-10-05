@@ -1478,6 +1478,7 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	streamlog_out(DEBUG4) << "-- PRE-STEP Point" << std::endl;
 	Hep3Vector locPrePosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPrePosition);
+	
 	streamlog_out(DEBUG4) << "-- POST-STEP Point" << std::endl;
 	Hep3Vector locPosPosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPosPosition);
