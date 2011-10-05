@@ -619,70 +619,44 @@ CLHEP::HepMatrix SiStripGeomFTD::transformMatxToGlobal(short int layerID, short 
 // Get info whether the given point is inside of Si sensor (parameters: layerID,
 // space point in local ref. system)
 //
-bool SiStripGeomFTD::isPointInsideSensor (short int layerID, short int ladderID, short int sensorID, const CLHEP::Hep3Vector & point) const
+bool SiStripGeomFTD::isPointInsideSensor (short int diskID, short int petalID, 
+		short int sensorID, const CLHEP::Hep3Vector & point) const
 {
-   bool isIn = false;
+	// Angle defining the petals
+	const double phi0 = _ftdLayer->getPhiHalfDistance(diskID);
 
-   // Gear type: VXD
-   if (_gearType == "VXD") {
-      //
-      // Transform point to local ref. system
+	// Calculate the maximum of each axis
+	const double xmax = _ftdLayer->getSensitiveThickness(diskID)*mm;
+	const double ygap = (_ftdLayer->getSensitiveWidth(diskID)*mm - point.getZ())*tan(phi0);
+	const double ymax = _ftdLayer->getSensitiveLengthMax(diskID)*mm-ygap;
+	const double zmax = _ftdLayer->getSensitiveWidth(diskID)*mm;
 
-      // Initialize local point
-      CLHEP::Hep3Vector localPoint(point);
+	bool isIn = true;
+	// Boundary set +- epsilon
+        if( (point.getX() > xmax+EPS*um) || (point.getX() < -EPS*um) )
+	{
+		streamlog_out(ERROR) << " position out of sensor! X [um] = "
+			<< point.getX()/um << " (Maximum x: " << xmax/um << ")" << std::endl;
+		isIn = false;
+	}
 
-      // Calculate rotation angles
-      double theta = getLadderTheta(layerID);
-      double phi   = getLadderPhi(layerID, ladderID);
+	if( (point.getY() >  ymax+EPS*um) || (point.getY() < ygap-EPS*um) )
+	{
+		streamlog_out(ERROR) << " position out of sensor! Y [mm] = "
+			<< point.getY()/mm << " (Maximum y: " << ymax/mm 
+			<< ", Minimum y:" << ygap << ")" << std::endl;
+		isIn = false;
+	}
 
-      // Find (0,0,0) position of local coordinate system
-      CLHEP::Hep3Vector localOrigin(getLayerRadius(layerID), getLadderOffsetY(layerID), getLadderOffsetZ(layerID));
-      localOrigin.rotateZ(+phi);
-
-      // Perform translation - to the center of a ladder
-      localPoint -= localOrigin;
-
-      // Perform rotation - to the center of a ladder
-      localPoint.rotateZ(-phi);
-      localPoint.rotateY(+theta);
-
-      // Perform translation such as X, Y, Z are positive
-      localPoint += CLHEP::Hep3Vector(+getSensorThick(layerID)/2., +getSensorWidth(layerID)/2.,
-                               +0.5*getLadderLength(layerID) - (2*sensorID + 1)*getSensorRimWidthInZ(layerID) - sensorID*getSensorGapInBetween(layerID)
-                               - sensorID*getSensorLength(layerID));
-
-
-
-      // Boundary set +- epsilon
-      // Barrel-type sensors
-      if ( (getLayerType(layerID) == stripB) && ( (localPoint.getX() < (getSensorThick(layerID) +EPS*um)) && (localPoint.getX() > (-EPS*um)) &&
-                                                  (localPoint.getY() < (getSensorWidth(layerID) +EPS*um)) && (localPoint.getY() > (-EPS*um)) &&
-                                                  (localPoint.getZ() < (getSensorLength(layerID)+EPS*um)) && (localPoint.getZ() > (-EPS*um)) ) ) isIn = true;
-      // Forward-type sensors
-      if (getLayerType(layerID) == stripF) {
-
-         double tanAlpha          = (getSensorWidth(layerID) - getSensorWidth2(layerID))/2./getSensorLength(layerID);
-         double actualSensorWidth = (getSensorWidth(layerID) - 2*tanAlpha*localPoint.getZ());
-
-         // Recalculate point into "local" local system (width depends on posZ)
-         CLHEP::Hep3Vector recalcPoint(localPoint.getX(), localPoint.getY() - getSensorWidth(layerID)/2. + actualSensorWidth/2., localPoint.getZ());
-
-         if ( (recalcPoint.getX() < (getSensorThick(layerID) +EPS*um)) && (recalcPoint.getX() > (-EPS*um)) &&
-              (recalcPoint.getY() < (actualSensorWidth       +EPS*um)) && (recalcPoint.getY() > (-EPS*um)) &&
-              (recalcPoint.getZ() < (getSensorLength(layerID)+EPS*um)) && (recalcPoint.getZ() > (-EPS*um)) ) isIn = true;
-      }
-
-   }
-   // Gear type: unknown - error
-   else {
-      streamlog_out(ERROR) << "Unknown gear type!"
-                           << std::endl;
-
-      exit(0);
-   }
-
-   // Return if out or not
-   return isIn;
+	if( (point.getZ() > zmax+EPS*um) || (point.getZ() < -EPS*um) ) 
+	{
+		streamlog_out(ERROR) << " position out of sensor! Z [mm] = "
+			<< point.getZ()/mm <<  " (Maximum z: " << zmax/mm << ")" << std::endl;
+		isIn = false;
+	}
+	
+	// Return if out or not
+	return isIn;
 }
 
 

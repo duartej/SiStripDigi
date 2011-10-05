@@ -195,8 +195,8 @@ class SiStripGeom
 		
 		// OTHER METHODS - GLOBAL REF. SYSTEM
 		//!Get info whether the given point is inside of Si sensor
-		virtual bool isPointInsideSensor (short int layerID, 
-				short int ladderID, short int sensorID, const CLHEP::Hep3Vector & point) const = 0;
+		virtual bool isPointInsideSensor (short int layerID, short int ladderID, 
+				short int sensorID, const CLHEP::Hep3Vector & point) const = 0;
 
 
 		// OTHER METHODS - LOCAL REF. SYSTEM
@@ -215,7 +215,6 @@ class SiStripGeom
 		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
 				double posZ) const = 0;
 
-		
 		// PRINT METHODS
 		//!Method printing general Gear parameters
 		virtual void printGearParams() const = 0;

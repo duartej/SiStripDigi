@@ -428,7 +428,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 			simDigiHit->setPrePosition(hitPos, hitMom, hitPath);
 			simDigiHit->setPosPosition(hitPos, hitMom, hitPath);
 			simDigiHit->setMomentum(hitMom);
-			simDigiHit->setdEdx(hitdEdx);
+			simDigiHit->setEDep(hitdEdx);
 			simDigiHit->setTime(hitTime);
 			simDigiHit->setPathLength(hitPath);
 			simDigiHit->setCellID0(hitCellID);
@@ -1474,73 +1474,35 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	Hep3Vector globPrePosition = simDigiHit->get3PrePosition();
 	Hep3Vector globPosPosition = simDigiHit->get3PosPosition();
 	Hep3Vector globMomentum    = simDigiHit->get3Momentum();
-	// Hit local preStep, resp. posStep, positiona and momentum
+	// Hit local preStep, resp. posStep, position and momentum
 	streamlog_out(DEBUG4) << "-- PRE-STEP Point" << std::endl;
 	Hep3Vector locPrePosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPrePosition);
-	
 	streamlog_out(DEBUG4) << "-- POST-STEP Point" << std::endl;
 	Hep3Vector locPosPosition = _geometry->transformPointToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globPosPosition);
+
 	Hep3Vector locMomentum    = _geometry->transformVecToLocal(_currentLayerID, 
 			_currentLadderID, _currentSensorID, globMomentum);
-
-	// FIXME: CHECK THE OTHER COORDENATES
-	// Avoid preStep rounding errors in z
-	if(locPrePosition.getX() < 0.) // FIXME: COnvert it to a function
-	{
-		if(locPrePosition.getX() >= -ROUNDEPS*um) 
-		{
-			locPrePosition.setX(0.);
-		}
-		else 
-		{
-			streamlog_out(ERROR) << "Prestep position out of sensor! X [um] = "
-          	                  << locPrePosition.getX() << std::endl;
-			exit(0);
-		}
-	}
 	
-	if(locPrePosition.getX() > _sensorThick) 
+	//-- Checking coherence
+	// Avoid preStep rounding errors, checking inside sensitive
+	const bool isPreIn = _geometry->isPointInsideSensor(_currentLayerID,
+			_currentLadderID,_currentSensorID,locPrePosition);
+	if( ! isPreIn )
 	{
-		if(locPrePosition.getX() <= (_sensorThick + ROUNDEPS*um)) 
-		{
-			locPrePosition.setX(_sensorThick);
-		}
-		else 
-		{
-			streamlog_out(ERROR) << "Prestep position out of sensor! X [um] = "
-				<< locPrePosition.getX() << std::endl;
-			exit(0);
-  		}
- 	}
-
-	// Avoid posStep rounding errors in z
-	if (locPosPosition.getX() < 0.) 
-	{
-		if (locPosPosition.getX() >= (-ROUNDEPS*um)) 
-		{
-			locPosPosition.setX(0.);
-		}
-		else 
-		{
-			streamlog_out(ERROR) << "Posstep position out of sensor! X [um] = "
-				<< locPosPosition.getX()/um << std::endl;
-			exit(0);
-		}
+		streamlog_out(ERROR) << "SiStripDigi::transformSimHit: " 
+			<< "Pre-step Position out of Sensor!\n" << std::endl;
+		exit(0);
 	}
-	if (locPosPosition.getX() > _sensorThick) 
+	// Avoid posStep rounding errors, checking inside sensitive
+	const bool isPosIn = _geometry->isPointInsideSensor(_currentLayerID,_currentLadderID,
+			_currentSensorID, locPosPosition);
+	if( ! isPosIn )
 	{
-		if(locPosPosition.getX() <= (_sensorThick + ROUNDEPS*um))
-		{
-			locPosPosition.setX(_sensorThick);
-		}
-		else 
-		{
-			streamlog_out(ERROR) << "Posstep position out of sensor! X [um] = "
-				<< locPosPosition.getX()/um << std::endl;
-			exit(0);
-		}
+		streamlog_out(ERROR) << "SiStripDigi::transformSimHit: " 
+			<< "Post-step Position out of Sensor!\n" << std::endl;
+		exit(0);
 	}
 	
 	// Save hit local preStep, resp. posStep, position and momentum
