@@ -473,13 +473,13 @@ void SiStripDigi::processEvent(LCEvent * event)
       } // For - process hits
 
       // Add electronics effects
-      if (_electronicEffects) {
-
-         // Calculate crosstalk and add this effect
-         calcCrossTalk(sensorMap);
-
-         // Generate noise and add this effect
-         genNoise(sensorMap);
+      if (_electronicEffects) 
+      {
+	      // Calculate crosstalk and add this effect
+	      calcCrossTalk(sensorMap);
+	      
+	      // Generate noise and add this effect
+	      genNoise(sensorMap);
       }
 
       // Print final info
@@ -503,7 +503,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 
       // TrackerPulses
       SensorStripMap::iterator iterSMap;
-		StripChargeMap::iterator iterChMap;
+      StripChargeMap::iterator iterChMap;
 
 		for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
 
@@ -748,7 +748,8 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 
 		// Calculate charge collected by a strip in Z or R-Phi 
 		// (using Shockley-Ramo theorem: dQe = |qClusterE * (d - x) / d|)
-		//chargeCollect = cluster->getNCarriers() * (_sensorThick - cluster->getPosX())/_sensorThick * fC;
+		//chargeCollect = cluster->getNCarriers() * 
+		//               (_sensorThick - cluster->getPosX())/_sensorThick * fC;
 		// Presume that R-Phi strips collect only electrons
 		chargeCollect = cluster->getNCarriers() * e;
 
@@ -774,12 +775,20 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		//
 		
 		//  Calculate min and max strip in R-Phi, collecting charge, (3 sigma limit)
-		int iMinStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
+//		int iMinStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
+//				(cluster->getPosY() - 3*diffSigma), cluster->getPosZ() );
+		int iMinStripInRPhi = _geometry->getStripID( cluster->getLayerID(), 
+				cluster->getSensorID(),
 				(cluster->getPosY() - 3*diffSigma), cluster->getPosZ() );
-		int iMaxStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
+//		int iMaxStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
+//				(cluster->getPosY() + 3*diffSigma),cluster->getPosZ() );
+		int iMaxStripInRPhi = _geometry->getStripID( cluster->getLayerID(), 
+				cluster->getSensorID(),
 				(cluster->getPosY() + 3*diffSigma),cluster->getPosZ() );
-		double sensorPitchInRPhi = _geometry->getSensorPitchInRPhi( _currentLayerID, 
-				cluster->getPosZ() );
+//		double sensorPitchInRPhi = _geometry->getSensorPitchInRPhi( _currentLayerID, 
+//				cluster->getPosZ() );
+		double sensorPitchInRPhi = _geometry->getSensorPitch( _currentLayerID, 
+				_currentSensorID, cluster->getPosZ() );
 
 		//  Gauss distr. - primitive function: from A to B
 		double mean       = cluster->getPosY();
@@ -880,7 +889,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		// Calculate charge collected by a strip (using Shockley-Ramo theorem 
 		// dQh = |qClusterH * x / d|)
 		//chargeCollect = cluster->getNCarriers() * 
-		//(cluster->getPosX())/_sensorThick * fC; // Presume that Z strips 
+		//        (cluster->getPosX())/_sensorThick * fC; // Presume that Z strips 
 		//collect only holes
 		chargeCollect = cluster->getNCarriers() * e;
 		
@@ -895,18 +904,29 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 
 		// Calculate Lorentz shift + evaluate cluster new position, i.e. X = 0.
 		shiftLorentz = getHoleLorentzShift(cluster->getPosX());
-		cluster->set3Position( shiftLorentz + Hep3Vector(0., cluster->getPosY(),cluster->getPosZ()) );
+		cluster->set3Position( shiftLorentz + 
+				Hep3Vector(0., cluster->getPosY(),cluster->getPosZ()) );
 
 		//
 		// Add diffusion effect and save results as signals (IN Z)
 		//
 		
 		//  Min and max strip, collecting charge, (3 sigma limit)
-		int iMinStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(),
+//		int iMinStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(),
+//				(cluster->getPosZ() - 3*diffSigma) );
+		int iMinStripInZ      = _geometry->getStripID( cluster->getLayerID(),
+				cluster->getSensorID(),
+				(cluster->getPosY() - 3*diffSigma),
 				(cluster->getPosZ() - 3*diffSigma) );
-		int iMaxStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(),
+//		int iMaxStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(),
+//				(cluster->getPosZ() + 3*diffSigma) );
+		int iMaxStripInZ      = _geometry->getStripID( cluster->getLayerID(),
+				cluster->getSensorID(),
+				(cluster->getPosY() - 3*diffSigma),
 				(cluster->getPosZ() + 3*diffSigma) );
-		double sensorPitchInZ = _geometry->getSensorPitchInZ( _currentLayerID );
+//		double sensorPitchInZ = _geometry->getSensorPitchInZ( _currentLayerID );
+		double sensorPitchInZ = _geometry->getSensorPitch( _currentLayerID,
+				_currentSensorID, cluster->getPosZ());
 		
 		//  Gauss distr. - primitive function: from A to B
 		double mean       = cluster->getPosZ();
@@ -1253,7 +1273,8 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 			}
 
 			// Right neighbour (crosstalk cannot go to non-existing strips, i.e. stripID >=0 && stripID < NSTRIPS
-			if ( (iStripRight)<_geometry->getSensorNStripsInRPhi(layerID) ) {
+	//		if ( (iStripRight)<_geometry->getSensorNStripsInRPhi(layerID) ) {
+			if ( (iStripRight)<_geometry->getSensorNStrips(layerID,sensorID) ) {
 			   if (stripMap[STRIPRPHI].find(iStripRight) != stripMap[STRIPRPHI].end()) {
 
 			      stripMap[STRIPRPHI][iStripRight]->updateCharge(chargeRight);
@@ -1378,7 +1399,8 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
          }
 
          // Right neighbour (crosstalk cannot go to non-existing strips, i.e. stripID >=0 && stripID < NSTRIPS
-         if ( (iStripRight)<_geometry->getSensorNStripsInZ(layerID) ) {
+//         if ( (iStripRight)<_geometry->getSensorNStripsInZ(layerID) ) {
+         if ( (iStripRight)<_geometry->getSensorNStrips(layerID,sensorID) ) {
             if (stripMap[STRIPZ].find(iStripRight) != stripMap[STRIPZ].end()) {
 
                stripMap[STRIPZ][iStripRight]->updateCharge(chargeRight);

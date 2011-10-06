@@ -351,13 +351,13 @@ short int SiStripGeom::getNSensors(short int layerID) const
 }
 
 //
-// Get number of Z strips (in each sensor)
+// Get number of strips (in each sensor)
 //
-int SiStripGeom::getSensorNStripsInZ(short int layerID) const
+/*int SiStripGeom::getSensorNStrips(const int & layerID, const int & sensorID) const
 {
-   if(_sensorNStripsInZ.size()>(unsigned short int)layerID)
+   if(_sensorNStrips.size()>(unsigned short int)layerID)
    {
-	   return _sensorNStripsInZ[layerID];
+	   return _sensorNStrips[layerID];
    }
    else
    {
@@ -378,12 +378,12 @@ int SiStripGeom::getSensorNStripsInRPhi(short int layerID) const
 	{
 		return 0;
 	}
-}
+}*/
 
 //
 // Get sensor pitch in Z axis for barrel-type and forward-type sensors
 //
-double SiStripGeom::getSensorPitchInZ(short int layerID) const
+/*double SiStripGeom::getSensorPitchInZ(short int layerID) const
 {
    if(_sensorPitchInZ.size()>(unsigned short int)layerID)
    {
@@ -393,7 +393,7 @@ double SiStripGeom::getSensorPitchInZ(short int layerID) const
    {
 	   return 0.;
    }
-}
+}*/
 
 
 //
@@ -505,7 +505,7 @@ double SiStripGeom::getSensorRimWidthInRPhi(short int layerID) const
 // Get Z-position of given strip in local ref system (in system of units defined in PhysicalConstants.h);
 // strips are considered to be perpendicular to beam axis for both barrel-type and forward-type sensors.
 //SUBDETECTOR DEPENDENT
-double SiStripGeom::getStripPosInZ(short int layerID, int stripID) const
+/*double SiStripGeom::getStripPosInZ(short int layerID, int stripID) const
 {
 	// Get pitch
 	double sensPitch = getSensorPitchInZ(layerID);
@@ -552,12 +552,10 @@ double SiStripGeom::getStripPosInRPhi(short int layerID, int stripID, double pos
 }
 
 //
-// Get strip ID (in Z), point is given in local ref. system; strips are
-// considered to be perpendicular (not in FTD, is paralel) to beam axis
+// Get strip ID (in Z-direction, i.e. measures the Rphi direction), 
+// point is given in local ref. system
 // 
 //
-// FIXME: (OR NOT) It seems to be common to all the subdetectors.. not
-//        needed to be pure virtual
 int SiStripGeom::getStripIDInZ(short int layerID, double posZ ) const
 {
 	// Get pitch
@@ -600,7 +598,7 @@ int SiStripGeom::getStripIDInZ(short int layerID, double posZ ) const
 	// Return stripID
 	return stripID;
 }
-
+*/
 //
 // Get strip ID (in R-Phi), point is given in local ref. system; strips are
 // considered to be parallel to beam axis for barrel-type sensors and at angle

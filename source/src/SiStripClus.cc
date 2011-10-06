@@ -518,7 +518,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 			{
 				goLeft  = false;
 			}
-			if(rightStrip >= _geometry->getSensorNStripsInZ(layerID)) 
+//			if(rightStrip >= _geometry->getSensorNStripsInZ(layerID)) 
+			if(rightStrip >= _geometry->getSensorNStrips(layerID,sensorID)) 
 			{
 				goRight = false;
 			}
@@ -611,7 +612,9 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 			{
 				// Current strip ID, posZ & charge
 				int stripID        = iterChMap2->first;
-				double stripPosZ   = _geometry->getStripPosInZ(layerID, stripID);
+				//double stripPosZ   = _geometry->getStripPosInZ(layerID, stripID);
+				CLHEP::Hep3Vector pointPos   = _geometry->getStripPos(layerID, sensorID,stripID);
+				double stripPosZ = pointPos.getZ();
 				double stripCharge = iterChMap2->second->getCharge();
 				
 				// Update info about MC particles which contributed
@@ -674,7 +677,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 				qIntermSignal  = 0.;
 			}
 			// Analog head-tail algorithm
-			double geomPitchInZ    = _geometry->getSensorPitchInZ(layerID);
+	//		double geomPitchInZ    = _geometry->getSensorPitchInZ(layerID);
+			double geomPitchInZ    = _geometry->getSensorPitch(layerID,sensorID,0);
 			double readOutPitchInZ = 0.;
 			if (_floatStripsZ) 
 			{
@@ -765,7 +769,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 
             // Control if left strip and right strip are in range
             if (leftStrip  <  0)                                          goLeft  = false;
-            if (rightStrip >= _geometry->getSensorNStripsInRPhi(layerID)) goRight = false;
+//            if (rightStrip >= _geometry->getSensorNStripsInRPhi(layerID)) goRight = false;
+            if (rightStrip >= _geometry->getSensorNStrips(layerID,sensorID)) goRight = false;
 
             //
             // Second: Search for left neighbours
@@ -847,7 +852,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 
                   // Current strip ID, posRPhi & charge
                   int stripID         = iterChMap2->first;
-                  double stripPosRPhi = _geometry->getStripPosInRPhi(layerID, stripID, pClusterZ->getPosZ());
+                  //double stripPosRPhi = _geometry->getStripPosInRPhi(layerID, stripID, pClusterZ->getPosZ());
+                  double stripPosRPhi = _geometry->getStripPos(layerID, sensorID, stripID).getY();
                   double stripCharge  = iterChMap2->second->getCharge();
 
                   // Update info about MC particles which contributed
@@ -895,7 +901,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
                else                 qIntermSignal  = 0.;
 
                // Analog head-tail algorithm
-               double geomPitchInRPhi    = _geometry->getSensorPitchInRPhi(layerID, pClusterZ->getPosZ());
+               //double geomPitchInRPhi    = _geometry->getSensorPitchInRPhi(layerID, pClusterZ->getPosZ());
+               double geomPitchInRPhi    = _geometry->getSensorPitch(layerID,sensorID, pClusterZ->getPosZ());
                double readOutPitchInRPhi = 0.;
                if (_floatStripsRPhi) readOutPitchInRPhi = 2*geomPitchInRPhi;
                else                  readOutPitchInRPhi =   geomPitchInRPhi;

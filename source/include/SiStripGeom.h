@@ -134,7 +134,7 @@ class SiStripGeom
 		virtual short int getNSensors(short int layerID) const;
 		
 		//!Get number of strips in Z axis (in each sensor)
-		virtual int getSensorNStripsInZ(short int layerID) const;
+/*		virtual int getSensorNStripsInZ(short int layerID) const;
 		//!Get number of strips in R-Phi (in each sensor)
 		virtual int getSensorNStripsInRPhi(short int layerID) const;
 		//!Get sensor pitch in Z axis for barrel-type and forward-type sensors
@@ -142,7 +142,12 @@ class SiStripGeom
 		
 		//!Get sensor pitch in the R-Phi plane of the local coordinate system
 		//!(posZ must be in local coordinate system)
-		virtual double getSensorPitchInRPhi(short int layerID, double posZ) const = 0;
+		virtual double getSensorPitchInRPhi(short int layerID, double posZ) const = 0;*/
+		//! Get number of strips
+		virtual int getSensorNStrips(const int & layerID, const int & sensorID) const=0;
+		//! Get sensor pitch 
+		virtual double getSensorPitch(const int & layerID, const int & sensorID, 
+				const double & posZ) const = 0;
 
 		//!Get sensor thickness
 		virtual double getSensorThick(short int layerID) const;
@@ -204,16 +209,22 @@ class SiStripGeom
 		virtual bool isPointOutOfSensor(short int layerID, 
 				const CLHEP::Hep3Vector & point) const = 0;
 		//!Get strip position for strips paralel to the local z-axis. 
-		virtual double getStripPosInZ(short int layerID, int stripID) const;// = 0;
-		//!Get strip position for strips lying in the R-Phi local plane
-		//!(parpendicular to local z-axis)
-		virtual double getStripPosInRPhi(short int layerID, int stripID, 
-				double posZ) const;// = 0;
-		//!Get strip ID for strips paralels to the local z-axis
-		virtual int getStripIDInZ(short int layerID, double posZ) const;// = 0;
-		//!Get strip ID for strips lying in the RPhi local plane
-		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
-				double posZ) const = 0;
+//		virtual double getStripPosInZ(short int layerID, int stripID) const;// = 0;
+//		//!Get strip position for strips lying in the R-Phi local plane
+//		//!(parpendicular to local z-axis)
+//		virtual double getStripPosInRPhi(short int layerID, int stripID, 
+//				double posZ) const;// = 0;
+//		//!Get strip ID for strips paralels to the local z-axis
+//		virtual int getStripIDInZ(short int layerID, double posZ) const;// = 0;
+//		//!Get strip ID for strips lying in the RPhi local plane
+//		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
+//				double posZ) const = 0;
+		//!Get strip position
+		virtual CLHEP::Hep3Vector getStripPos(const int & layerID, 
+				const int & sensorID, const int & stripID) const =0;
+		//!Get strip ID
+		virtual int getStripID(const int & layerID, const int & sensorID, 
+				const double & posRPhi, const double & posZ) const = 0;
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters
@@ -260,10 +271,10 @@ class SiStripGeom
 	 
 		// Geometry - sensors
 		std::vector<int> _numberOfSensors;
-		std::vector<int> _sensorNStripsInZ;
-		std::vector<int> _sensorNStripsInRPhi;
-		std::vector<double> _sensorPitchInZ; 
-		std::vector<double> _sensorPitchInRPhi;
+		std::vector<int> _sensorNStripsInFront;
+		std::vector<int> _sensorNStripsInRear;
+		std::vector<double> _sensorPitchInFront; 
+		std::vector<double> _sensorPitchInRear;
 		std::vector<double> _sensorThick;
 		std::vector<double> _sensorWidth;
 		std::vector<double> _sensorWidth2;

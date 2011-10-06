@@ -97,10 +97,18 @@ class SiStripGeomFTD: public SiStripGeom
 		//! Get info whether the given point is out of Si sensor (parameters: layerID,
 		//! space point in local ref. system)
 		virtual bool isPointOutOfSensor(short int layerID, const CLHEP::Hep3Vector & point) const;
-		//! Get sensor pitch for strips perpendicular to the RPhi plane in the local
-		//! ref. system.
+		
+		//! Get sensor pitch for strips in the local ref. system.
 		//! Currently it means the faced to IP sensors of the petals.
-		double getSensorPitchInRPhi(short int diskID, double posZ = 0) const;
+		virtual double getSensorPitch(const int & diskID, const int & sensorID,
+				const double & posZ) const;
+		
+		//! Get position in the local ref. system for the stripID
+		virtual CLHEP::Hep3Vector getStripPos(const int & diskID, 
+				const int & sensorID, const int & stripID) const;
+
+		//! Get number of strips per sensor
+		virtual int getSensorNStrips(const int & diskID, const int & sensorID) const;
 		
 		// OTHER METHODS - IDENTIFYING
 		//! Get strip ID (in Phi), points are given in local ref. system; strips are
@@ -109,7 +117,8 @@ class SiStripGeomFTD: public SiStripGeom
 		//! of strips in the RPhi LRF plane is dependent of Z (in LRF) due to 
 		//! the trapezoid shape of the sensors.
 		//! That sensor are the faced to IP on each petal (in the current design)
-		int getStripIDInRPhi(short int diskID, double posRPhi, double posZ ) const;
+		int getStripID(const int & diskID, const int & sensorID,
+				const double & posRPhi, const double & posZ ) const;
 
 		//!Method impossed by consistent with the mother class.
 		//!The FTD sensors are all perpendicular to the beam axis
@@ -127,6 +136,11 @@ class SiStripGeomFTD: public SiStripGeom
 		gear::FTDLayerLayout * _ftdLayer;
 		//FIXME PROVISIONAL?
 		double getLadderOffsetX(const short int & layerID) const;
+		//! Transforming a given point to the local ref. frame of a petal 
+		//! which is rotated around its center an angle stAngle
+		CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
+				const int & sensorID, const double & stAngle, 
+				const CLHEP::Hep3Vector & point) const;
 
 		std::vector<double> _layerOuterRadius;
 		std::vector<double> _layerPetalOpAngle;
