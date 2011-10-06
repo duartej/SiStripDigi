@@ -188,7 +188,8 @@ class SiStripDigi : public marlin::Processor {
 //!performed here too, using internal Landau fluctuator. Required parameters:
 //!a pointer to SimTrackerDigiHit and two vectors of pointers to electron,
 //!resp. hole clusters (pairs) )
-   void calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & eClusterVec, DigiClusterVec & hClusterVec);
+   void calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & hClusterVec);
+		//DigiClusterVec & eClusterVec, DigiClusterVec & hClusterVec);
 
 //!Method that calculates crosstalk effect, i.e. each total charge is redistributed
 //!according the following relation: Q_neigh = Q_centr * C_inter/(C_inter + C_back + C_coupl),

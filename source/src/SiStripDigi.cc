@@ -354,7 +354,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 	
 	//
 	// Process SimTrackerHit collection
-	if (colOfSimHits != 0) 
+	if(colOfSimHits != 0) 
 	{
 		// Sensor map of strips with total integrated charge
 		SensorStripMap sensorMap;
@@ -458,19 +458,19 @@ void SiStripDigi::processEvent(LCEvent * event)
 			// Digitize the given hit and get sensor map of strips with total
 			// integrated charge and time when a particle crossed the sensor
 			digitize(simDigiHit, sensorMap);
-
-	      // Unset actual sensor parameters
-	      _currentLayerID      = 0;
-	      _currentLadderID     = 0;
-	      _currentSensorID     = 0;
-
-	      _magField.set(0., 0., 0.);
-
-	      // Clear memory
-	      delete simDigiHit;
-	      simDigiHit = 0;
-
-      } // For - process hits
+			
+			// Unset actual sensor parameters
+			_currentLayerID      = 0;
+			_currentLadderID     = 0;
+			_currentSensorID     = 0;
+			
+			_magField.set(0., 0., 0.);
+			
+			// Clear memory
+			delete simDigiHit;
+			simDigiHit = 0;
+			
+		} // For - process hits
 
       // Add electronics effects
       if (_electronicEffects) 
@@ -484,6 +484,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 
       // Print final info
       printStripsInfo("all effects included", sensorMap);
+      exit(0);
 
       //
       // Create new collection (TrackerPulses + relations) from obtained results
@@ -712,17 +713,18 @@ void SiStripDigi::end()
 //
 // The main method digitizing given hit (input parameter: a pointer to
 // SimTrackerDigiHit, output parameter: sensor map of strips with total
-// integrated charge in R-Phi and Z; and time when particle crossed the sensor)
+// integrated charge and time when particle crossed the sensor)
 //
 //FIXME: Still some fails in the Z-position...
 void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap & sensorMap)
 {
 	//
 	// Calculate electron, resp. hole, clusters from obtained hits & provide Landau fluctuations
-	DigiClusterVec eClusterVec;
+ 	//DigiClusterVec eClusterVec;
 	DigiClusterVec hClusterVec;
-
-	calcClusters(simDigiHit, eClusterVec, hClusterVec);
+	
+	//FIXME: Return the vector, not passing per reference
+	calcClusters(simDigiHit, hClusterVec );
 	
 	//
 	// Go through all e, resp. h, clusters, perform drift, diffusion and Lorentz shift
@@ -741,7 +743,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	double chargeCollect = 0.;
 	
 	// Electron clusters
-	for( iterVec=eClusterVec.begin(); iterVec!=eClusterVec.end(); iterVec++ ) 
+	/*for( iterVec=eClusterVec.begin(); iterVec!=eClusterVec.end(); iterVec++ ) 
 	{
 		DigiCluster * cluster = (*iterVec);
 
@@ -879,13 +881,13 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	
 	} // For electrons
 
-	eClusterVec.clear();
+	eClusterVec.clear();*/
 	
 	// Hole clusters
 	for( iterVec=hClusterVec.begin(); iterVec!=hClusterVec.end(); iterVec++ ) 
 	{
 		DigiCluster * cluster = (*iterVec);
-		
+
 		// Calculate charge collected by a strip (using Shockley-Ramo theorem 
 		// dQh = |qClusterH * x / d|)
 		//chargeCollect = cluster->getNCarriers() * 
@@ -914,27 +916,30 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		//  Min and max strip, collecting charge, (3 sigma limit)
 //		int iMinStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(),
 //				(cluster->getPosZ() - 3*diffSigma) );
-		int iMinStripInZ      = _geometry->getStripID( cluster->getLayerID(),
-				cluster->getSensorID(),
-				(cluster->getPosY() - 3*diffSigma),
-				(cluster->getPosZ() - 3*diffSigma) );
+		int iMinStrip = _geometry->getStripID( cluster->getLayerID(),
+				cluster->getSensorID(),	
+				(cluster->getPosY() - 3.*diffSigma), cluster->getPosZ() );
 //		int iMaxStripInZ      = _geometry->getStripIDInZ( cluster->getLayerID(),
 //				(cluster->getPosZ() + 3*diffSigma) );
-		int iMaxStripInZ      = _geometry->getStripID( cluster->getLayerID(),
+		int iMaxStrip = _geometry->getStripID( cluster->getLayerID(),
 				cluster->getSensorID(),
-				(cluster->getPosY() - 3*diffSigma),
-				(cluster->getPosZ() + 3*diffSigma) );
+				(cluster->getPosY() + 3.*diffSigma), cluster->getPosZ() );
 //		double sensorPitchInZ = _geometry->getSensorPitchInZ( _currentLayerID );
-		double sensorPitchInZ = _geometry->getSensorPitch( _currentLayerID,
+		double sensorPitch = _geometry->getSensorPitch( _currentLayerID,
 				_currentSensorID, cluster->getPosZ());
+
+std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um]:" 
+<< sensorPitch/um << ")\n\t cluster y[um]:" << (cluster->getPosY()-3.0*diffSigma)/um << 
+", " << (cluster->getPosY()+3.0*diffSigma)/um << std::endl;
 		
 		//  Gauss distr. - primitive function: from A to B
 		double mean       = cluster->getPosZ();
 		double sigmaSqrt2 = diffSigma * sqrt(2.);
-		double primAtA    = 0.5*( 1. + erf( (iMinStripInZ*sensorPitchInZ - mean)/sigmaSqrt2) );
+		double primAtA    = 0.5*( 1. + erf( (iMinStrip*sensorPitch - mean)/sigmaSqrt2) );
 		double primAtB    = 0.;
 		
-		//  Sensor map of strips with total integrated charge and time when particle crossed the detector
+		//  Sensor map of strips with total integrated charge and time when particle 
+		//  crossed the detector
 		SensorStripMap::iterator iterSMap;
 		StripChargeMap::iterator iterChMap;
 		
@@ -942,13 +947,13 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		Signal * signal = 0;
 		
 		//  Calculate signal at each strip and save
-		for (int i=iMinStripInZ; i<=iMaxStripInZ; i++) 
+		for (int i=iMinStrip; i<=iMaxStrip; i++) 
 		{
 			// Charge collected by a strip i
 			double charge = 0.;
 			
 			// Gauss distr. - prim. function at B
-			primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitchInZ - mean)/sigmaSqrt2) );
+			primAtB = 0.5*( 1. + erf( ((i+1)*sensorPitch - mean)/sigmaSqrt2) );
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
@@ -966,7 +971,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 				iterChMap = iterSMap->second[STRIPZ].find(i);
 				
 				// Strip i in Z has already collected some charge
-				if (iterChMap != iterSMap->second[STRIPZ].end()) 
+				if(iterChMap != iterSMap->second[STRIPZ].end()) 
 				{
 					// Get signal at strip i
 					signal = iterChMap->second;
@@ -1011,11 +1016,11 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 				sensorMap[cluster->getCellID()] = stripMap;
 			}
 		} // Calculate signal at each strip		
-	// Release memory
-	delete cluster;
-        cluster = 0;
+		// Release memory
+		delete cluster;
+		cluster = 0;
 	}	// For holes
-
+	
 	hClusterVec.clear();
 }
 
@@ -1026,9 +1031,10 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 // to SimTrackerDigiHit and two vectors of pointers to electron, resp. hole
 // clusters (pairs) )
 //
-void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & eClusterVec, DigiClusterVec & hClusterVec)
+void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & hClusterVec)
+		//DigiClusterVec & eClusterVec, DigiClusterVec & hClusterVec)
 {
-	DigiCluster * eCluster  = 0;
+	//DigiCluster * eCluster  = 0;
 	DigiCluster * hCluster  = 0;
 	
 	// Calculate the number of clusters (each cluster sits in the middle of a substep,
@@ -1103,12 +1109,12 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 #endif
 		
 		// Electron clusters
-		eCluster = new DigiCluster(-1, hit->getTime(), eLoss,
+		/*eCluster = new DigiCluster(-1, hit->getTime(), eLoss,
 				hit->get3PrePosition() + (i+0.5)*clusterStep,
 				hit->getLayerID()   , hit->getLadderID(),
 				hit->getSensorID()  , hit->getCellID0(),
 				hit->getMCParticle(), hit->getSimTrackerHit());
-		eClusterVec.push_back(eCluster);
+		eClusterVec.push_back(eCluster);*/
 		
 		// Hole clusters
 		hCluster = new DigiCluster(+1, hit->getTime(), eLoss,
@@ -1119,7 +1125,7 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & e
 		hClusterVec.push_back(hCluster);
 	}
 	// Print detailed info about clusters
-	printClustersInfo("Electron clusters in local ref. system", eClusterVec);
+	//printClustersInfo("Electron clusters in local ref. system", eClusterVec);
 	printClustersInfo("Hole clusters in local ref. system", hClusterVec);
 	streamlog_out(MESSAGE2) << std::endl;
 }
