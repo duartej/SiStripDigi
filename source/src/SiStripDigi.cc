@@ -341,8 +341,8 @@ void SiStripDigi::processEvent(LCEvent * event)
 	}
 	//
 	// Print event number
-	//   if ( ((event->getEventNumber()+1)%100 == 0) || ((event->getEventNumber()+1) == 1)) {
-	if ( (event->getEventNumber()+1)%100 == 0 ) 
+	//   if ( ((event->getEventNumber()+1)%100 == 0) || ((event->getEventNumber()+1) == 1)) 
+	if( (event->getEventNumber()+1)%100 == 0 ) 
 	{
 		streamlog_out(MESSAGE3) << DYELLOW
 			<< "  Processing event: "
@@ -365,6 +365,11 @@ void SiStripDigi::processEvent(LCEvent * event)
 		// Get number of SimTrackerHits in the collection
 		int nHits = colOfSimHits->getNumberOfElements();
 		
+		// Strips Types to loop overt there
+		std::vector<StripType> stripTypesvect;
+		stripTypesvect.push_back(STRIPFRONT);
+		stripTypesvect.push_back(STRIPREAR);
+
 		// Process hits
 		for (int i=0; i<nHits; i++) 
 		{
@@ -411,12 +416,13 @@ void SiStripDigi::processEvent(LCEvent * event)
 			}
 			short int hitLadderID = cellIDDec(simHit)["module"]-1;
 			short int hitSensorID = cellIDDec(simHit)["sensor"];
-			//DEBUG -- 
+			//FIXME: The pixel disks digitization must be done
+			//       by some other package...
 			if( abs(_geometry->getLayerRealID(hitLayerID)) < 3 )
 			{
 				continue;
 			}
-			//END-DEBUG
+			
 			int  hitCellID   = _geometry->encodeCellID(hitLayerID, hitLadderID, hitSensorID);
 			// MC information
 			MCParticle * mcPart = simHit->getMCParticle();
@@ -471,106 +477,123 @@ void SiStripDigi::processEvent(LCEvent * event)
 			simDigiHit = 0;
 			
 		} // For - process hits
+		
+		
+		// Add electronics effects
+		if(_electronicEffects)
+		{
+			// Calculate crosstalk and add this effect
+			calcCrossTalk(sensorMap);			
+			// Generate noise and add this effect
+			genNoise(sensorMap);
+		}
+		// Print final info
+		printStripsInfo("all effects included", sensorMap);
+		
+		//
+		// Create new collection (TrackerPulses + relations) from obtained results
+		IMPL::LCCollectionVec * colOfTrkPulses   = new IMPL::LCCollectionVec(LCIO::TRACKERPULSE);
+		IMPL::LCCollectionVec * colOfRelPlsToSim = NULL;
+		
+		if(!_relColNamePlsToSim.empty()) 
+		{
+			colOfRelPlsToSim = new IMPL::LCCollectionVec(LCIO::LCRELATION);
+		}
 
-      // Add electronics effects
-      if (_electronicEffects) 
-      {
-	      // Calculate crosstalk and add this effect
-	      calcCrossTalk(sensorMap);
-	      
-	      // Generate noise and add this effect
-	      genNoise(sensorMap);
-      }
+		// Set collection flag - cellID 1 will be stored, relations will contain weights
+		LCFlagImpl flag1(0), flag2(0);
+		
+		flag1.setBit(LCIO::TRAWBIT_ID1);
+		flag2.setBit(LCIO::LCREL_WEIGHTED);
+		
+		colOfTrkPulses->setFlag(flag1.getFlag());
+		if (!_relColNamePlsToSim.empty())
+		{
+			colOfRelPlsToSim->setFlag(flag2.getFlag());
+		}
 
-      // Print final info
-      printStripsInfo("all effects included", sensorMap);
-      exit(0);
-
-      //
-      // Create new collection (TrackerPulses + relations) from obtained results
-      IMPL::LCCollectionVec * colOfTrkPulses   = new IMPL::LCCollectionVec(LCIO::TRACKERPULSE);
-      IMPL::LCCollectionVec * colOfRelPlsToSim = NULL;
-
-      if (!_relColNamePlsToSim.empty()) colOfRelPlsToSim = new IMPL::LCCollectionVec(LCIO::LCRELATION);
-
-      // Set collection flag - cellID 1 will be stored, relations will contain weights
-      LCFlagImpl flag1(0), flag2(0);
-
-      flag1.setBit(LCIO::TRAWBIT_ID1);
-      flag2.setBit(LCIO::LCREL_WEIGHTED);
-
-      colOfTrkPulses->setFlag(flag1.getFlag());
-      if (!_relColNamePlsToSim.empty()) colOfRelPlsToSim->setFlag(flag2.getFlag());
-
-      // TrackerPulses
-      SensorStripMap::iterator iterSMap;
-      StripChargeMap::iterator iterChMap;
-
-		for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
-
-			int cellID = iterSMap->first;
-
-			// Strips in R-Phi
-			for (iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) {
-
-				int       stripID   = iterChMap->first;
-				StripType stripType = RPhi;
-
-				// Create new Tracker pulse (time in ns, charge in fC), if charge positive, otherwise will be cut-out in clustering anyway
-				if (iterChMap->second->getCharge() > 0.*fC) {
-
-				   TrackerPulseImpl * trkPulse = new TrackerPulseImpl();
-
-				   trkPulse->setCellID0(cellID);
-				   trkPulse->setCellID1(_geometry->encodeStripID(stripType, stripID));
-				   trkPulse->setTime(iterChMap->second->getTime()/ns);
-				   trkPulse->setCharge(iterChMap->second->getCharge()/fC);
-				   trkPulse->setTrackerData(0);
-
-				   // Create relation from Tracker pulse to SimTrackerHit
-				   if (!_relColNamePlsToSim.empty()) {
-
+		// TrackerPulses
+		SensorStripMap::iterator iterSMap;
+		StripChargeMap::iterator iterChMap;
+		
+	
+		for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+		{
+	             int cellID = iterSMap->first;
+			
+		     for(std::vector<StripType>::iterator stripTypeIt = stripTypesvect.begin();
+				     stripTypeIt != stripTypesvect.end(); stripTypeIt++)
+		     {
+			 StripType stripType = *stripTypeIt;
+		         for(iterChMap=iterSMap->second[stripType].begin();
+					 iterChMap!=iterSMap->second[stripType].end(); iterChMap++)
+			 {
+			     int       stripID   = iterChMap->first;
+			     //StripType stripType = STRIPFRONT;
+			     
+			     // Create new Tracker pulse (time in ns, charge in fC), if charge 
+			     // positive, otherwise will be cut-out in clustering anyway
+			     if(iterChMap->second->getCharge() > 0.*fC) 
+			     {
+				 TrackerPulseImpl * trkPulse = new TrackerPulseImpl();
+				 trkPulse->setCellID0(cellID);
+				 trkPulse->setCellID1(_geometry->encodeStripID(stripType, stripID));
+				 trkPulse->setTime(iterChMap->second->getTime()/ns);
+				 trkPulse->setCharge(iterChMap->second->getCharge()/fC);
+				 trkPulse->setTrackerData(0);
+				 
+				 // Create relation from Tracker pulse to SimTrackerHit
+				 if(!_relColNamePlsToSim.empty()) 
+				 {
 				      const SimTrackerHitMap & simHitMap = iterChMap->second->getSimHitMap();
-				      float                    weightSum = iterChMap->second->getSimHitWeightSum();
-
-				      for (SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
-
-				         // Create LC relation
-				         LCRelationImpl * relation = new LCRelationImpl;
-				         SimTrackerHit  * simHit   = iterSHM->first;
-				         float            weight   = 0.;
-
-				         // Set from TrkPulse to MCParticle
-				         relation->setFrom(trkPulse);
-				         relation->setTo(simHit);
-
-				         // Set weight
-				         if (weightSum != 0.) weight = float(iterSHM->second)/weightSum;
-				         else                 weight = 0.;
-
-				         relation->setWeight(weight);
-
-				         // Add
-				         if (weight != 0.) colOfRelPlsToSim->addElement(relation);
-				         else              delete relation;
+				      float weightSum = iterChMap->second->getSimHitWeightSum();
+				      for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin();
+						      iterSHM!=simHitMap.end(); iterSHM++) 
+				      {
+					  // Create LC relation
+					      LCRelationImpl * relation = new LCRelationImpl;
+					      SimTrackerHit  * simHit   = iterSHM->first;
+					      float            weight   = 0.;
+					      
+					      // Set from TrkPulse to MCParticle
+					      relation->setFrom(trkPulse);
+					      relation->setTo(simHit);				     
+					      // Set weight
+					      if(weightSum != 0.) 
+					      {
+						   weight = float(iterSHM->second)/weightSum;
+					      }
+					      else
+					      {
+						   weight = 0.;
+					      }
+					      relation->setWeight(weight);
+					      
+					      // Add
+					      if(weight != 0.)
+					      {
+						   colOfRelPlsToSim->addElement(relation);
+					      }
+					      else
+					      {
+						   delete relation;
+					      }
 				      }
-				   }
-
-				   // Save the pulse to the collection
-				   colOfTrkPulses->addElement(trkPulse);
-				}
-
-			   short int layerID  = 0;
-			   short int ladderID = 0;
-			   short int sensorID = 0;
-			   _geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
-
-				// Release memory
-				delete iterChMap->second;
-
-			}
-
-         // Strips in Z
+				 }
+				 // Save the pulse to the collection
+				 colOfTrkPulses->addElement(trkPulse);
+			     }
+			     
+			     short int layerID  = 0;
+			     short int ladderID = 0;
+			     short int sensorID = 0;
+			     _geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
+			     
+			     // Release memory
+			     delete iterChMap->second;
+			 }
+		     
+		     /*      // Strips in Z
          for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) {
 
             int       stripID   = iterChMap->first;
@@ -627,35 +650,35 @@ void SiStripDigi::processEvent(LCEvent * event)
 
             // Release memory
             delete iterChMap->second;
-         }
-
-         // Release memory
-			delete [] iterSMap->second;
-
-		} // For
-
+         }*/
+		     } // For for strips type
+		     // Release memory
+		     delete [] iterSMap->second;
+		} // For */
 		//
 		// Save the collection (vector) of pulses + relations to MC
-      event->addCollection(colOfTrkPulses, _outColName);
-
-      if (!_relColNamePlsToSim.empty()) event->addCollection(colOfRelPlsToSim, _relColNamePlsToSim);
-
-   } // If (colOfSimHits != 0)
-
-   if(errors_occured != 0) {
-
-      streamlog_out(DEBUG4) << "SimTrackerHit outside " << errors_occured << " times outside of integration time of sensor" << std::endl;
-   }
-   errors_occured = 0;
-
+		event->addCollection(colOfTrkPulses, _outColName);
+		
+		if(!_relColNamePlsToSim.empty())
+		{
+			event->addCollection(colOfRelPlsToSim, _relColNamePlsToSim);
+		}
+		
+	} // If (colOfSimHits != 0)
+	if(errors_occured != 0) 
+	{
+		streamlog_out(DEBUG4) << "SimTrackerHit outside " 
+			<< errors_occured << " times outside of integration time of sensor" 
+			<< std::endl;
+	}
+	errors_occured = 0;
+	
 #ifdef ROOT_OUTPUT_LAND
-
-   // Save deposited energy in histograms
-   _rootELossG4->Fill(_rootDepEG4/keV);
-   _rootELossDigi->Fill(_rootDepEDigi/keV);
+	// Save deposited energy in histograms
+	_rootELossG4->Fill(_rootDepEG4/keV);
+	_rootELossDigi->Fill(_rootDepEDigi/keV);
 #endif
-
-   _nEvent++;
+	_nEvent++;
 }
 
 //
@@ -715,7 +738,6 @@ void SiStripDigi::end()
 // SimTrackerDigiHit, output parameter: sensor map of strips with total
 // integrated charge and time when particle crossed the sensor)
 //
-//FIXME: Still some fails in the Z-position...
 void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap & sensorMap)
 {
 	//
@@ -741,6 +763,24 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	
 	// Cluster - charge collected by a strip
 	double chargeCollect = 0.;
+	
+	// Get the type of strip (sensors 1,2 or sensors 3,4)
+	int stripType = -1;
+	if( _currentSensorID == 1 || _currentSensorID == 2 )
+	{
+		stripType = STRIPFRONT;
+	}
+	else if(_currentSensorID == 3 || _currentSensorID == 4 )
+	{
+		stripType = STRIPREAR; 
+	}
+	else
+	{
+		streamlog_out(ERROR) << "SiStripDigi::digitize - "
+			<< " Incoherent sensor ID! ID = " << _currentSensorID
+			<< " do not exist. " << std::endl;
+		exit(0);
+	}
 	
 	// Electron clusters
 	/*for( iterVec=eClusterVec.begin(); iterVec!=eClusterVec.end(); iterVec++ ) 
@@ -888,6 +928,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	{
 		DigiCluster * cluster = (*iterVec);
 
+
 		// Calculate charge collected by a strip (using Shockley-Ramo theorem 
 		// dQh = |qClusterH * x / d|)
 		//chargeCollect = cluster->getNCarriers() * 
@@ -930,7 +971,8 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 
 std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um]:" 
 << sensorPitch/um << ")\n\t cluster y[um]:" << (cluster->getPosY()-3.0*diffSigma)/um << 
-", " << (cluster->getPosY()+3.0*diffSigma)/um << std::endl;
+", " << (cluster->getPosY()+3.0*diffSigma)/um << ", " << _currentSensorID << " " 
+<< stripType << std::endl;
 		
 		//  Gauss distr. - primitive function: from A to B
 		double mean       = cluster->getPosZ();
@@ -947,7 +989,7 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 		Signal * signal = 0;
 		
 		//  Calculate signal at each strip and save
-		for (int i=iMinStrip; i<=iMaxStrip; i++) 
+		for(int i=iMinStrip; i<=iMaxStrip; i++) 
 		{
 			// Charge collected by a strip i
 			double charge = 0.;
@@ -968,33 +1010,37 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 			if (iterSMap != sensorMap.end() ) 
 			{
 				// Find strip i in Z
-				iterChMap = iterSMap->second[STRIPZ].find(i);
+				iterChMap = iterSMap->second[stripType].find(i);
 				
 				// Strip i in Z has already collected some charge
-				if(iterChMap != iterSMap->second[STRIPZ].end()) 
+				if(iterChMap != iterSMap->second[stripType].end()) 
 				{
 					// Get signal at strip i
 					signal = iterChMap->second;
 					
-					// Update signal information (add current charge to the total)
+					// Update signal information (add current charge to 
+					// the total)
 					signal->updateCharge(charge);
 					
 					// Update MC truth information
-					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+					signal->updateSimHitMap(cluster->getSimTrackerHit(), 
+							charge);
 					
 				}
 				// Strip i in Z hasn't collected any charge yet
 				else 
 				{
-					// Create signal, i.e. total charge + time when particle crossed the detector,
-					// all corresponding to strip i
+					// Create signal, i.e. total charge + time when 
+					// particle crossed the detector, all corresponding 
+					// to strip i
 					signal = new Signal(charge, cluster->getTime());
 					
 					// Save MC truth information
-					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+					signal->updateSimHitMap(cluster->getSimTrackerHit(), 
+							charge);
 					
 					// Save information about strip i in Z
-					iterSMap->second[STRIPZ][i] = signal;
+					iterSMap->second[stripType][i] = signal;
 					
 				}
 			}
@@ -1004,15 +1050,15 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 				// Create map of strips with total collected charge
 				StripChargeMap * stripMap = new StripChargeMap[2];
 				
-				// Create signal, i.e. total charge + time when particle crossed the detector,
-				// all corresponding to strip i
+				// Create signal, i.e. total charge + time when particle crossed the
+				//detector, all corresponding to strip i
 				signal = new Signal(charge, cluster->getTime());
 				
 				// Save MC truth information
 				signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
 				
 				// Save information about strip i in Z
-				stripMap[STRIPZ][i] = signal;
+				stripMap[stripType][i] = signal;
 				sensorMap[cluster->getCellID()] = stripMap;
 			}
 		} // Calculate signal at each strip		
@@ -1137,9 +1183,9 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & h
 //
 void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 {
-   // Calculate how much charge is collected by adjacent strips
-   // If read-out pitch = geom. pitch
-	static float capRatio      = _capInterStrip/(_capInterStrip + _capBackPlane + _capCoupl);
+	// Calculate how much charge is collected by adjacent strips
+	// If read-out pitch = geom. pitch
+	static float capRatio = _capInterStrip/(_capInterStrip + _capBackPlane + _capCoupl);
 	// If read-out pitch = 2x geom. pitch
 	static float capFloatRatio = _capInterStrip/2./(_capInterStrip/2. + _capBackPlane + _capCoupl);
 
@@ -1152,31 +1198,31 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 	short int sensorID   = 0;
 
 	int iStrip           = 0 ;
-   int iStripLeft       = 0 ;
-   int iStripRight      = 0 ;
-
+	int iStripLeft       = 0 ;
+	int iStripRight      = 0 ;
 
 	Signal * signal      = 0 ;
 	double time          = 0.;
 	double chargeCentr   = 0.;
 	double chargeLeft    = 0.;
 	double chargeRight   = 0.;
+	
+	// Go through all sensors
+	for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+	{
+		// Find corresponding layerID
+		_geometry->decodeCellID(layerID, ladderID, sensorID, iterSMap->first);
 
-   // Go through all sensors
-	for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
+		// Define strip map with recalculated signals
+		StripChargeMap * stripMap = new StripChargeMap[2];
 
-	   // Find corresponding layerID
-	   _geometry->decodeCellID(layerID, ladderID, sensorID, iterSMap->first);
-
-	   // Define strip map with recalculated signals
-	    StripChargeMap * stripMap = new StripChargeMap[2];
-
-	   // Read map of strips in R-Phi and save new results to recalculated strip map
-	   for (iterChMap=(iterSMap->second[STRIPRPHI]).begin(); iterChMap!=(iterSMap->second[STRIPRPHI]).end(); iterChMap++) {
-
-	      iStrip = iterChMap->first;
-
-	      // Calculate charge redistribution
+		// Read map of strips in R-Phi and save new results to recalculated strip map
+		for(iterChMap=(iterSMap->second[STRIPRPHI]).begin(); 
+				iterChMap!=(iterSMap->second[STRIPRPHI]).end(); iterChMap++) 
+		{
+			iStrip = iterChMap->first;
+			
+			// Calculate charge redistribution
 			signal = iterChMap->second;
 
 			SimTrackerHitMap simHitMapLeft;
@@ -1184,8 +1230,8 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 			SimTrackerHitMap simHitMapRight;
 
 			// Floating strip - capRatio = 0.5
-			if ((_floatStripsRPhi) && (iStrip%2==1)) {
-
+			if((_floatStripsRPhi) && (iStrip%2==1)) 
+			{
 			   chargeCentr  = signal->getCharge();
 
 			   iStripLeft   = iStrip - 1;
@@ -1196,18 +1242,18 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 
 			   chargeCentr  = 0.;
 
-			   for (SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); iterSHM!=signal->getSimHitMap().end(); iterSHM++) {
-
+			   for (SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); 
+					   iterSHM!=signal->getSimHitMap().end(); iterSHM++) 
+			   {
 			      simHitMapLeft[iterSHM->first]  = iterSHM->second * 0.5;
 			      simHitMapCentr[iterSHM->first] = 0.;
 			      simHitMapRight[iterSHM->first] = iterSHM->second * 0.5;
 			   }
-
 			}
 			// Read-out strip, adjacent floating - capRatio = capFloatRatio
-			else if ((_floatStripsRPhi) && (iStrip%2==0)) {
-
-			   chargeCentr  = signal->getCharge();
+			else if((_floatStripsRPhi) && (iStrip%2==0)) 
+			{
+		           chargeCentr  = signal->getCharge();
 
 			   iStripLeft   = iStrip - 2;
 			   chargeLeft   = chargeCentr * capFloatRatio;
@@ -1217,17 +1263,17 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 
 			   chargeCentr  = chargeCentr - chargeLeft - chargeRight;
 
-			   for (SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); iterSHM!=signal->getSimHitMap().end(); iterSHM++) {
-
+			   for (SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); 
+					   iterSHM!=signal->getSimHitMap().end(); iterSHM++) 
+			   {
 			      simHitMapLeft[iterSHM->first]  = iterSHM->second * capFloatRatio;
 			      simHitMapCentr[iterSHM->first] = iterSHM->second * chargeCentr/signal->getCharge();
 			      simHitMapRight[iterSHM->first] = iterSHM->second * capFloatRatio;
 			   }
-
-         }
+			}
 			// All strips are read-out - capRatio = catRatio
-			else {
-
+			else 
+			{
 			   chargeCentr  = signal->getCharge();
 
 			   iStripLeft   = iStrip - 1;
@@ -1237,70 +1283,72 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 			   chargeRight  = chargeCentr * capRatio;
 
 			   chargeCentr  = chargeCentr - chargeLeft - chargeRight;
-
-            for (SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); iterSHM!=signal->getSimHitMap().end(); iterSHM++) {
-
-               simHitMapLeft[iterSHM->first]  = iterSHM->second * capRatio;
-               simHitMapCentr[iterSHM->first] = iterSHM->second * chargeCentr/signal->getCharge();
-               simHitMapRight[iterSHM->first] = iterSHM->second * capRatio;
-            }
-
+			   
+			   for (SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); 
+					   iterSHM!=signal->getSimHitMap().end(); iterSHM++) 
+			   {
+			      simHitMapLeft[iterSHM->first]  = iterSHM->second * capRatio;
+			      simHitMapCentr[iterSHM->first] = iterSHM->second * chargeCentr/signal->getCharge();
+			      simHitMapRight[iterSHM->first] = iterSHM->second * capRatio;
+			   }
 			}
-
 			//std::cout << signal->getCharge() << ":" << iStrip << " " << chargeCentr << ":" << iStripLeft << " " << chargeLeft << ":" << iStripRight << " " << chargeRight << std::endl;
-
+			
 			// Time
 			time            = signal->getTime();
-
 			// Left neighbour (crosstalk cannot go to non-existing strips, i.e. stripID >=0 && stripID < NSTRIPS
-			if ( (iStripLeft)>=0 ) {
-			   if (stripMap[STRIPRPHI].find(iStripLeft) != stripMap[STRIPRPHI].end()) {
-
-			      stripMap[STRIPRPHI][iStripLeft]->updateCharge(chargeLeft);
-			      stripMap[STRIPRPHI][iStripLeft]->updateSimHitMap(simHitMapLeft);
-			   }
-			   else {
-			      stripMap[STRIPRPHI][iStripLeft] = new Signal(chargeLeft, time);
-			      stripMap[STRIPRPHI][iStripLeft]->updateSimHitMap(simHitMapLeft);
-			   }
+			if( (iStripLeft)>=0 ) 
+			{
+				if(stripMap[STRIPRPHI].find(iStripLeft) != stripMap[STRIPRPHI].end()) 
+				{
+				    stripMap[STRIPRPHI][iStripLeft]->updateCharge(chargeLeft);
+				    stripMap[STRIPRPHI][iStripLeft]->updateSimHitMap(simHitMapLeft);
+				}
+				else 
+				{
+				    stripMap[STRIPRPHI][iStripLeft] = new Signal(chargeLeft, time);
+				    stripMap[STRIPRPHI][iStripLeft]->updateSimHitMap(simHitMapLeft);
+				}
 			}
 			// Central strip
-			if (chargeCentr!=0) {
-			   if (stripMap[STRIPRPHI].find(iStrip) != stripMap[STRIPRPHI].end()) {
-
-			      stripMap[STRIPRPHI][iStrip]->updateCharge(chargeCentr);
-			      stripMap[STRIPRPHI][iStrip]->updateSimHitMap(simHitMapCentr);
-			   }
-			   else {
-			      stripMap[STRIPRPHI][iStrip] = new Signal(chargeCentr, time);
-			      stripMap[STRIPRPHI][iStrip]->updateSimHitMap(simHitMapCentr);
-			   }
-
+			if (chargeCentr!=0) 
+			{
+				if(stripMap[STRIPRPHI].find(iStrip) != stripMap[STRIPRPHI].end()) 
+				{
+			            stripMap[STRIPRPHI][iStrip]->updateCharge(chargeCentr);
+				    stripMap[STRIPRPHI][iStrip]->updateSimHitMap(simHitMapCentr);
+				}
+				else 
+				{
+				    stripMap[STRIPRPHI][iStrip] = new Signal(chargeCentr, time);
+				    stripMap[STRIPRPHI][iStrip]->updateSimHitMap(simHitMapCentr);
+				}
 			}
 
 			// Right neighbour (crosstalk cannot go to non-existing strips, i.e. stripID >=0 && stripID < NSTRIPS
-	//		if ( (iStripRight)<_geometry->getSensorNStripsInRPhi(layerID) ) {
-			if ( (iStripRight)<_geometry->getSensorNStrips(layerID,sensorID) ) {
-			   if (stripMap[STRIPRPHI].find(iStripRight) != stripMap[STRIPRPHI].end()) {
-
-			      stripMap[STRIPRPHI][iStripRight]->updateCharge(chargeRight);
-			      stripMap[STRIPRPHI][iStripRight]->updateSimHitMap(simHitMapRight);
-			   }
-			   else {
-			      stripMap[STRIPRPHI][iStripRight] = new Signal(chargeRight, time);
-			      stripMap[STRIPRPHI][iStripRight]->updateSimHitMap(simHitMapRight);
-			   }
+	//		if ( (iStripRight)<_geometry->getSensorNStripsInRPhi(layerID) ) 
+			if( (iStripRight)<_geometry->getSensorNStrips(layerID,sensorID) ) 
+			{
+				if (stripMap[STRIPRPHI].find(iStripRight) != stripMap[STRIPRPHI].end()) 
+				{
+				    stripMap[STRIPRPHI][iStripRight]->updateCharge(chargeRight);
+				    stripMap[STRIPRPHI][iStripRight]->updateSimHitMap(simHitMapRight);
+				}
+				else 
+				{
+				    stripMap[STRIPRPHI][iStripRight] = new Signal(chargeRight, time);
+				    stripMap[STRIPRPHI][iStripRight]->updateSimHitMap(simHitMapRight);
+				}
 			}
 
 			// Release memory
 			delete iterChMap->second;
-
 		}
-
-	   // Read map of strips in Z and save new results to recalculated strip map
-	   for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) {
-
-	      iStrip = iterChMap->first;
+		
+		// Read map of strips in Z and save new results to recalculated strip map
+		for(iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) 
+		{
+			iStrip = iterChMap->first;
 
 	      // Calculate charge redistribution
          signal              = iterChMap->second;
@@ -1405,7 +1453,7 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
          }
 
          // Right neighbour (crosstalk cannot go to non-existing strips, i.e. stripID >=0 && stripID < NSTRIPS
-//         if ( (iStripRight)<_geometry->getSensorNStripsInZ(layerID) ) {
+//         if ( (iStripRight)<_geometry->getSensorNStripsInZ(layerID) ) 
          if ( (iStripRight)<_geometry->getSensorNStrips(layerID,sensorID) ) {
             if (stripMap[STRIPZ].find(iStripRight) != stripMap[STRIPZ].end()) {
 
