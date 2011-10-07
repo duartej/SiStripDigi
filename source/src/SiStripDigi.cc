@@ -320,7 +320,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 					<<_inColName
 					<< " found, but NOT of SIMTRACKERHIT type!!!"
 					<< std::endl;
-				exit(0);
+				exit(-1);
 			}
 		}
 	} // For - collection names
@@ -529,7 +529,6 @@ void SiStripDigi::processEvent(LCEvent * event)
 					 iterChMap!=iterSMap->second[stripType].end(); iterChMap++)
 			 {
 			     int       stripID   = iterChMap->first;
-			     //StripType stripType = STRIPFRONT;
 			     
 			     // Create new Tracker pulse (time in ns, charge in fC), if charge 
 			     // positive, otherwise will be cut-out in clustering anyway
@@ -593,64 +592,6 @@ void SiStripDigi::processEvent(LCEvent * event)
 			     delete iterChMap->second;
 			 }
 		     
-		     /*      // Strips in Z
-         for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) {
-
-            int       stripID   = iterChMap->first;
-            StripType stripType = Z;
-
-            // Create new Tracker pulse (time in ns, charge in fC), if charge positive, otherwise will be cut-out in clustering anyway
-            if (iterChMap->second->getCharge() > 0.*fC) {
-
-               TrackerPulseImpl * trkPulse = new TrackerPulseImpl();
-
-               trkPulse->setCellID0(cellID);
-               trkPulse->setCellID1(_geometry->encodeStripID(stripType, stripID));
-               trkPulse->setTime(iterChMap->second->getTime()/ns);
-               trkPulse->setCharge(iterChMap->second->getCharge()/fC);
-               trkPulse->setTrackerData(0);
-
-               // Create relation from Tracker pulse to SimTrackerHit
-               if (!_relColNamePlsToSim.empty()) {
-
-                  const SimTrackerHitMap & simHitMap = iterChMap->second->getSimHitMap();
-                  float                    weightSum = iterChMap->second->getSimHitWeightSum();
-
-                  for (SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
-
-                     // Create LC relation
-                     LCRelationImpl * relation = new LCRelationImpl;
-                     SimTrackerHit  * simHit   = iterSHM->first;
-                     float            weight   = 0.;
-
-                     // Set from TrkPulse to MCParticle
-                     relation->setFrom(trkPulse);
-                     relation->setTo(simHit);
-
-                     // Set weight
-                     if (weightSum != 0.) weight = float(iterSHM->second)/weightSum;
-                     else                 weight = 0.;
-
-                     relation->setWeight(weight);
-
-                     // Add
-                     if (weight != 0.) colOfRelPlsToSim->addElement(relation);
-                     else              delete relation;
-                  }
-               }
-
-               // Save the pulse to the collection
-               colOfTrkPulses->addElement(trkPulse);
-            }
-
-            short int layerID  = 0;
-            short int ladderID = 0;
-            short int sensorID = 0;
-            _geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
-
-            // Release memory
-            delete iterChMap->second;
-         }*/
 		     } // For for strips type
 		     // Release memory
 		     delete [] iterSMap->second;
@@ -779,7 +720,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		streamlog_out(ERROR) << "SiStripDigi::digitize - "
 			<< " Incoherent sensor ID! ID = " << _currentSensorID
 			<< " do not exist. " << std::endl;
-		exit(0);
+		exit(-1);
 	}
 	
 	// Electron clusters
@@ -1569,7 +1510,7 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	{
 		streamlog_out(ERROR) << "SiStripDigi::transformSimHit: " 
 			<< "Pre-step Position out of Sensor!\n" << std::endl;
-		exit(0);
+		exit(-1);
 	}
 	// Avoid posStep rounding errors, checking inside sensitive
 	const bool isPosIn = _geometry->isPointInsideSensor(_currentLayerID,_currentLadderID,
@@ -1578,7 +1519,7 @@ void SiStripDigi::transformSimHit(SimTrackerDigiHit * simDigiHit)
 	{
 		streamlog_out(ERROR) << "SiStripDigi::transformSimHit: " 
 			<< "Post-step Position out of Sensor!\n" << std::endl;
-		exit(0);
+		exit(-1);
 	}
 	
 	// Save hit local preStep, resp. posStep, position and momentum
@@ -1629,7 +1570,7 @@ double SiStripDigi::getElecDriftTime(double pos)
 		streamlog_out(ERROR) << "Problem to calculate total drift time. " 
 			<< "Electrons at position: " 
 			<< pos << " are out of range!" << std::endl;
-		exit(0);
+		exit(-1);
 	}
 	
 	// Result (Be carefull about rounding errors)
@@ -1656,7 +1597,7 @@ double SiStripDigi::getHoleDriftTime(double pos)
       streamlog_out(ERROR) << "Problem to calculate total drift time. Holes at position: "
 		            		   << pos << " are out of range!"
 		            		   << std::endl;
-      exit(0);
+      exit(-1);
    }
 
    // Result (Be carefull about rounding errors)
@@ -1674,7 +1615,7 @@ double SiStripDigi::getEField(double pos)
 	{
 		streamlog_out(ERROR) << "Electric field at required position: " << pos
 			<< " not defined!" << std::endl;
-		exit(0);
+		exit(-1);
 	}
 	
 	// Return electric intensity 
@@ -1737,7 +1678,7 @@ Hep3Vector SiStripDigi::getElecLorentzShift(double pos)
       streamlog_out(ERROR) << "Problem to calculate Lorentz angle. Electrons at position: "
 		            		   << pos << " are out of range!"
 		            		   << std::endl;
-      exit(0);
+      exit(-1);
    }
 
    // Final Lorentz shift for electrons (Be careful about rounding errors)
@@ -1772,7 +1713,7 @@ Hep3Vector SiStripDigi::getHoleLorentzShift(double pos)
       streamlog_out(ERROR) << "Problem to calculate Lorentz angle. Holes at position: "
 		            		   << pos << " are out of range!"
 		            		   << std::endl;
-      exit(0);
+      exit(-1);
    }
 
    // Final Lorentz shift for holes (Be careful about rounding errors)
