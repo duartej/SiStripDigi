@@ -186,8 +186,7 @@ void SiStripGeomFTD::initGearParams()
 		const double ymiddlesensorup  = _ftdLayer->getSensitiveWidth(i)*mm/2.0;
 		const double widthmiddle = xmaxsensorup-
 			(2.0*tan(_ftdLayer->getPhiHalfDistance(i))*ymiddlesensorup);
-std::cout << (int)(widthmiddle/_sensorPitchInFront[i])+1 << std::endl;
-
+		
 		_sensorNStripsInFront.push_back( (int)(widthmiddle/_sensorPitchInFront[i])+1 );
 		_sensorNStripsInRear.push_back( (int)(widthmiddle/_sensorPitchInRear[i])+1 );
 	}

@@ -562,6 +562,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 				 {
 				      const SimTrackerHitMap & simHitMap = iterChMap->second->getSimHitMap();
 				      float weightSum = iterChMap->second->getSimHitWeightSum();
+      std::cout<< weightSum << std::endl;
 				      for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin();
 						      iterSHM!=simHitMap.end(); iterSHM++) 
 				      {
@@ -926,13 +927,15 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		double sensorPitch = _geometry->getSensorPitch( _currentLayerID,
 				_currentSensorID, cluster->getPosZ());
 
+std::cout << "======================================== New Cluster"  << std::endl;
 std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um]:" 
-<< sensorPitch/um << ")\n\t cluster y[um]:" << (cluster->getPosY()-3.0*diffSigma)/um << 
-", " << (cluster->getPosY()+3.0*diffSigma)/um << ", " << _currentSensorID << " " 
-<< stripType << std::endl;
+<< sensorPitch/um << ")\n\t cluster y(min,mean,max)[um]:" 
+<< (cluster->getPosY()-3.0*diffSigma)/um << ", " << cluster->getPosY()/um << "," 
+<< (cluster->getPosY()+3.0*diffSigma)/um << ", " << _currentSensorID << " " 
+<< stripType << " Charge collect before repartir: " << chargeCollect<< std::endl;
 		
 		//  Gauss distr. - primitive function: from A to B
-		double mean       = cluster->getPosZ();
+		double mean       = cluster->getPosY(); //cluster->getPosZ();
 		double sigmaSqrt2 = diffSigma * sqrt(2.);
 		double primAtA    = 0.5*( 1. + erf( (iMinStrip*sensorPitch - mean)/sigmaSqrt2) );
 		double primAtB    = 0.;
@@ -945,6 +948,7 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 		//  Strip signal
 		Signal * signal = 0;
 		
+std::cout << "---- Entrando loop del calculo de senyal por strip " << std::endl;
 		//  Calculate signal at each strip and save
 		for(int i=iMinStrip; i<=iMaxStrip; i++) 
 		{
@@ -956,15 +960,23 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
+std::cout << " y-position strip " << i << ": " << i*sensorPitch/um 
+	<< " y-position strip " << i+1 << ": " << (i+1)*sensorPitch/um << std::endl;
+std::cout << " Charge deposited in Strip-" << i << ": "  << charge << std::endl;
+std::cout << " Window Position of the charge y[um]:" << (cluster->getPosY()-3.0*diffSigma)/um 
+	<< ", " << cluster->getPosY()/um << "," << (cluster->getPosY()+3.0*diffSigma)/um 
+	<< std::endl;
+
 			
 			// New integration starting point
 			primAtA = primAtB;
 			
 			// Find sensor with given ID
 			iterSMap = sensorMap.find(cluster->getCellID());
+
 			
 			// Sensor has already collected some charge
-			if (iterSMap != sensorMap.end() ) 
+			if(iterSMap != sensorMap.end()) 
 			{
 				// Find strip i in Z
 				iterChMap = iterSMap->second[stripType].find(i);
@@ -1013,6 +1025,11 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 				
 				// Save MC truth information
 				signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
+if(charge != 0){
+SimTrackerHitMap kk = signal->getSimHitMap();
+std::cout << "************************************************************************";
+std::cout << "*************> " << kk[cluster->getSimTrackerHit()] 
+	<< "  -----" << charge << std::endl;}
 				
 				// Save information about strip i in Z
 				stripMap[stripType][i] = signal;
