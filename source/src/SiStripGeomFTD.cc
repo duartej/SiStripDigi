@@ -174,15 +174,26 @@ void SiStripGeomFTD::initGearParams()
 	//_sensorPitchInFront  = std::vector<double>(2*_numberOfLayers,50.0 * um); //FIXME: HARDCODED
 	_sensorPitchInFront  = std::vector<double>(2*_numberOfLayers,50.0 * um); //FIXME: HARDCODED
 	_sensorNStripsInFront.reserve(2*_numberOfLayers);
+	_sensorPitchInRear     = std::vector<double>(2*_numberOfLayers,50.0*um); // FIXME
+	_sensorNStripsInRear.reserve(2*_numberOfLayers);
 	for(int i = 0; i < _numberOfLayers; i++)
 	{
+		// 50 um in the middle
 		const double xmaxsensorup = _ftdLayer->getSensitiveLengthMax(i)*mm;
-		_sensorNStripsInFront.push_back( (int)(xmaxsensorup/_sensorPitchInFront[i])+1 );
+		const double ymiddlesensorup  = _ftdLayer->getSensitiveWidth(i)*mm/2.0;
+		const double widthmiddle = xmaxsensorup-
+			(2.0*tan(_ftdLayer->getPhiHalfDistance(i))*ymiddlesensorup);
+std::cout << (int)(widthmiddle/_sensorPitchInFront[i])+1 << std::endl;
+
+		_sensorNStripsInFront.push_back( (int)(widthmiddle/_sensorPitchInFront[i])+1 );
+		_sensorNStripsInRear.push_back( (int)(widthmiddle/_sensorPitchInRear[i])+1 );
 	}
 	_sensorNStripsInFront.insert(_sensorNStripsInFront.end(),_sensorNStripsInFront.begin(),
 			_sensorNStripsInFront.end());
+	_sensorNStripsInRear.insert(_sensorNStripsInRear.end(),_sensorNStripsInRear.begin(),
+		_sensorNStripsInRear.end());
 
-	_sensorPitchInRear     = std::vector<double>(2*_numberOfLayers,50.0*um); // FIXME
+	/*_sensorPitchInRear     = std::vector<double>(2*_numberOfLayers,50.0*um); // FIXME
 	_sensorNStripsInRear.reserve(2*_numberOfLayers);
 	for(int i = 0; i < _numberOfLayers; i++)
 	{
@@ -190,7 +201,7 @@ void SiStripGeomFTD::initGearParams()
 		_sensorNStripsInRear.push_back( (int)(widthsensor/_sensorPitchInRear[i])+1 );
 	}
 	_sensorNStripsInRear.insert(_sensorNStripsInRear.end(),_sensorNStripsInRear.begin(),
-			_sensorNStripsInRear.end());
+		_sensorNStripsInRear.end());*/
 }
 
 
