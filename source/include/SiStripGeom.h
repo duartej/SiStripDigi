@@ -13,6 +13,8 @@
 
 #include "EVENT/SimTrackerHit.h"
 
+#include "UTIL/BitField64.h"
+
 namespace sistrip 
 {
 
@@ -89,6 +91,9 @@ class SiStripGeom
 		virtual int encodeStripID(StripType type, int stripID) const;
 		//!Decode stripID
 		virtual std::pair<StripType,int> decodeStripID(const int & encodedStripID) const;
+		//!Stores the cellID0 and cellID1 of the LCIO object to the file
+		virtual void updateCanonicalCellID(const int & cellID, const int & stripType,
+				const int & stripID, UTIL::BitField64 * bf) = 0;
 		
 		// LAYER PROPERTIES
 		//!Get number of layers

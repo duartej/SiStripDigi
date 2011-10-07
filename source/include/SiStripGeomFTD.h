@@ -55,6 +55,10 @@ class SiStripGeomFTD: public SiStripGeom
 
 		//!Method to extract codification ID, PROVISIONAL
 		std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit);
+		
+		//!Stores the cellID0 and cellID1 of the LCIO object to the file
+		virtual void updateCanonicalCellID(const int & cellID, const int & stripType,
+				const int & stripID, UTIL::BitField64 * bf);
 
 
 		// TRANSFORMATION METHODS - GLOBAL REF. SYSTEM

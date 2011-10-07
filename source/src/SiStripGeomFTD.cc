@@ -25,6 +25,9 @@
 #include <marlin/Global.h>
 #include <streamlog/streamlog.h>
 
+// Include Encoder stuff
+#include <UTIL/ILDConf.h>
+
 
 
 // FIXME: Maybe to be changed in gear xml. By the moment
@@ -202,6 +205,27 @@ std::cout << (int)(widthmiddle/_sensorPitchInFront[i])+1 << std::endl;
 	}
 	_sensorNStripsInRear.insert(_sensorNStripsInRear.end(),_sensorNStripsInRear.begin(),
 		_sensorNStripsInRear.end());*/
+}
+
+
+void SiStripGeomFTD::updateCanonicalCellID(const int & cellID, const int & stripType,
+		const int & stripID, UTIL::BitField64 * cellEnc)
+{
+	(*cellEnc)["subdet"]=ILDDetID::FTD;
+	short int layer=-1;
+	short int module=-1;
+	short int sensor=-1;
+
+	decodeCellID(layer,module,sensor,cellID);
+
+	int realLayer = getLayerRealID(layer);
+
+	(*cellEnc)["side"]=abs(realLayer)/realLayer;
+	(*cellEnc)["layer"]=abs(realLayer);
+	(*cellEnc)["module"]=module;
+	(*cellEnc)["sensor"]=sensor;
+	(*cellEnc)["stripType"]=stripType;
+	(*cellEnc)["stripID"]=stripID;	
 }
 
 

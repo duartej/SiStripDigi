@@ -32,6 +32,8 @@
 #include <IMPL/LCRelationImpl.h>
 #include <IMPL/TrackerPulseImpl.h>
 #include <UTIL/CellIDDecoder.h>
+#include <UTIL/CellIDEncoder.h>
+#include <UTIL/ILDConf.h>
 
 // Include Marlin
 #include <streamlog/streamlog.h>
@@ -424,6 +426,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 			}
 			
 			int  hitCellID   = _geometry->encodeCellID(hitLayerID, hitLadderID, hitSensorID);
+
 			// MC information
 			MCParticle * mcPart = simHit->getMCParticle();
 			
@@ -493,7 +496,10 @@ void SiStripDigi::processEvent(LCEvent * event)
 		//
 		// Create new collection (TrackerPulses + relations) from obtained results
 		IMPL::LCCollectionVec * colOfTrkPulses   = new IMPL::LCCollectionVec(LCIO::TRACKERPULSE);
+
+
 		IMPL::LCCollectionVec * colOfRelPlsToSim = NULL;
+
 		
 		if(!_relColNamePlsToSim.empty()) 
 		{
@@ -511,6 +517,11 @@ void SiStripDigi::processEvent(LCEvent * event)
 		{
 			colOfRelPlsToSim->setFlag(flag2.getFlag());
 		}
+		
+		// CODIFICATION
+		CellIDEncoder<TrackerPulseImpl> cellEnc(
+				ILDCellID0::encoder_string+",stripType:2,stripID:11",
+				colOfTrkPulses);
 
 		// TrackerPulses
 		SensorStripMap::iterator iterSMap;
@@ -535,8 +546,13 @@ void SiStripDigi::processEvent(LCEvent * event)
 			     if(iterChMap->second->getCharge() > 0.*fC) 
 			     {
 				 TrackerPulseImpl * trkPulse = new TrackerPulseImpl();
-				 trkPulse->setCellID0(cellID);
-				 trkPulse->setCellID1(_geometry->encodeStripID(stripType, stripID));
+				
+				 //Storing the cellID0 and cellID1
+				 _geometry->updateCanonicalCellID(cellID,stripType,stripID,
+						 &cellEnc);				
+				 cellEnc.setCellID(trkPulse);
+				 //trkPulse->setCellID0(cellID);
+				 //trkPulse->setCellID1(_geometry->encodeStripID(stripType, stripID));
 				 trkPulse->setTime(iterChMap->second->getTime()/ns);
 				 trkPulse->setCharge(iterChMap->second->getCharge()/fC);
 				 trkPulse->setTrackerData(0);
