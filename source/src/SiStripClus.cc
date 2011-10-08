@@ -24,6 +24,8 @@
 #include <UTIL/LCRelationNavigator.h>
 #include <IMPL/TrackerPulseImpl.h>
 #include <IMPL/TrackerHitImpl.h>
+#include <UTIL/CellIDDecoder.h>
+
 
 // Include Marlin
 #include <streamlog/streamlog.h>
@@ -331,6 +333,8 @@ void SiStripClus::processEvent(LCEvent * event)
 	// Process TrackerPulse collections
 	if(colOfTrkPulses != 0) 
 	{
+		CellIDDecoder<TrackerPulse> cellIDDec(colOfTrkPulses);
+
 		// Initialize variables
 		TrackerPulseImpl * pulse = 0;
 		
@@ -348,7 +352,7 @@ void SiStripClus::processEvent(LCEvent * event)
 					colOfTrkPulses->getElementAt(i) );
 			
 			// Update the sensor strip map with the pulse
-			updateMap(pulse, sensorMap);
+			updateMap(&cellIDDec(pulse), pulse, sensorMap);
 		} 
 /*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
 {
@@ -468,7 +472,7 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 		// Save layer ID , ...
 		int cellID = iterSMap->first;
 		
-		_geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
+		_geometry->decodeCellID(layerID, ladderID, sensorID, cellID); ---> FIXME
 		
 		//
 		// Clusters in Z
@@ -1247,22 +1251,24 @@ void SiStripClus::calcResolution(short int layerID, double hitTheta, float * cov
 // Method to save the signal 
 //
 // FIXME: Returns true if everything was fine
-void SiStripClus::updateMap(TrackerPulseImpl * pulse, SensorStripMap & sensorMap )
+void SiStripClus::updateMap(const BitField64 * cellID, TrackerPulseImpl * pulse,  
+		SensorStripMap & sensorMap )
 {
 	// CellID0 encodes layerID, ladderID and sensorID; 
 	// cellID1 encodes strip (in Z or R-Phi)
 	int       cellID0 = pulse->getCellID0();
-	int       cellID1 = pulse->getCellID1();
+	//int       cellID1 = pulse->getCellID1();
+	int stripType = (*cellID)["stripType"];
+	int stripID   = (*cellID)["stripID"];
 	double    charge  = pulse->getCharge()*fC;			
-	
 	// decode stripID and stripType
-	std::pair<StripType,int> tpIdpair(_geometry->decodeStripID(cellID1));
+//	std::pair<StripType,int> tpIdpair(_geometry->decodeStripID(cellID1)); --> FIXME
 	
-	const StripType stripType = tpIdpair.first;
-	const int stripID = tpIdpair.second;
+//	const StripType stripType = tpIdpair.first;
+//	const int stripID = tpIdpair.second;
 	
 	// Controlling some errors
-	if( stripType != STRIPZ && stripType != STRIPRPHI )
+	if( stripType != STRIPFRONT && stripType != STRIPREAR )
 	{
 		streamlog_out(ERROR) 
 			<< "cellID1 - problem to identify if strips in Z or R-Phi!!!" 

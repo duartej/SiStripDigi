@@ -26,6 +26,7 @@
 #include <EVENT/LCCollection.h>
 #include <UTIL/LCRelationNavigator.h>
 #include <IMPL/TrackerPulseImpl.h>
+#include <UTIL/BitField64.h>
 
 // Include Marlin
 #include <marlin/Global.h>
@@ -102,7 +103,8 @@ class SiStripClus : public Processor
 			void calcResolution(short int layerID, double hitTheta, float * covMatrix);
 			
 			//!Method to update and store the Sensor strip map
-			void updateMap(TrackerPulseImpl * pulse, SensorStripMap & sensorMap );
+			void updateMap(const UTIL::BitField64 * cellID, TrackerPulseImpl * pulse,  
+					SensorStripMap & sensorMap );
 			//!Method to release memory of the SensorStripMap
 			void releaseMap(SensorStripMap & sensorMap);
 			

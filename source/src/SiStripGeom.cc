@@ -83,7 +83,7 @@ int SiStripGeom::encodeStripID(StripType type, int stripID) const
 }
 
 //
-// Decode strip ID
+// Decode strip ID: FIXME TO BE FIXED---> Now the codification is done with the cellDec
 //
 std::pair<StripType,int> SiStripGeom::decodeStripID(const int & encodedStripID) const 
 {
