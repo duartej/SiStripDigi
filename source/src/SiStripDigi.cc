@@ -740,147 +740,6 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		exit(-1);
 	}
 	
-	// Electron clusters
-	/*for( iterVec=eClusterVec.begin(); iterVec!=eClusterVec.end(); iterVec++ ) 
-	{
-		DigiCluster * cluster = (*iterVec);
-
-
-		// Calculate charge collected by a strip in Z or R-Phi 
-		// (using Shockley-Ramo theorem: dQe = |qClusterE * (d - x) / d|)
-		//chargeCollect = cluster->getNCarriers() * 
-		//               (_sensorThick - cluster->getPosX())/_sensorThick * fC;
-		// Presume that R-Phi strips collect only electrons
-		chargeCollect = cluster->getNCarriers() * e;
-
-		// Calculate drift time
-		driftTime = getElecDriftTime(cluster->getPosX());
-		cluster->setDriftTime(driftTime);
-
-		// Calculate mean diffusivity and diffusion sigma
-		diffSigma  = getElecDiffusivity((cluster->getPosX()+_sensorThick)/2.);
-		diffSigma *= 2 * driftTime;
-		diffSigma  = sqrt(diffSigma);
-		cluster->setDiffSigma(diffSigma);
-
-		// Calculate Lorentz shift + evaluate cluster new position, i.e. X = 0
-		shiftLorentz = getElecLorentzShift(cluster->getPosX());
-		cluster->set3Position( shiftLorentz + Hep3Vector(_sensorThick, 
-					cluster->getPosY(),cluster->getPosZ()) );
-
-//std::cout << "Electron - DriftTime[ns]: " << driftTime/ns << " DiffSigma[um]: " << diffSigma/um << " LorentzShift[um]: " << shiftLorentz/um << " " << " Position Final: " << cluster->get3Position() << " Charge collect[e]: " << chargeCollect << std::endl;
-
-		//
-		// Add diffusion effect and save results as signals (IN R-PHI)
-		//
-		
-		//  Calculate min and max strip in R-Phi, collecting charge, (3 sigma limit)
-//		int iMinStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
-//				(cluster->getPosY() - 3*diffSigma), cluster->getPosZ() );
-		int iMinStripInRPhi = _geometry->getStripID( cluster->getLayerID(), 
-				cluster->getSensorID(),
-				(cluster->getPosY() - 3*diffSigma), cluster->getPosZ() );
-//		int iMaxStripInRPhi = _geometry->getStripIDInRPhi( cluster->getLayerID(), 
-//				(cluster->getPosY() + 3*diffSigma),cluster->getPosZ() );
-		int iMaxStripInRPhi = _geometry->getStripID( cluster->getLayerID(), 
-				cluster->getSensorID(),
-				(cluster->getPosY() + 3*diffSigma),cluster->getPosZ() );
-//		double sensorPitchInRPhi = _geometry->getSensorPitchInRPhi( _currentLayerID, 
-//				cluster->getPosZ() );
-		double sensorPitchInRPhi = _geometry->getSensorPitch( _currentLayerID, 
-				_currentSensorID, cluster->getPosZ() );
-
-		//  Gauss distr. - primitive function: from A to B
-		double mean       = cluster->getPosY();
-		double sigmaSqrt2 = diffSigma * sqrt(2.);
-		double primAtA    = 0.5*( 1. + erf( (iMinStripInRPhi*sensorPitchInRPhi - mean)/sigmaSqrt2) );
-		double primAtB    = 0.;
-		
-		//  Sensor map of strips with total integrated charge and time when 
-		//particle crossed the detector
-		SensorStripMap::iterator iterSMap;
-		StripChargeMap::iterator iterChMap;
-		
-		//  Strip signal
-		Signal * signal = 0;
-
-		//  Calculate signal at each strip and save
-		for (int i=iMinStripInRPhi; i<=iMaxStripInRPhi; i++) 
-		{
-			// Charge collected by a strip i
-			double charge = 0.;
-			
-			// Gauss distr. - prim. function at B
-			primAtB = 0.5*(1.+erf( ((i+1)*sensorPitchInRPhi - mean)/sigmaSqrt2) );
-			
-			// Integration result
-			charge = (primAtB - primAtA) * chargeCollect;
-			
-			// New integration starting point
-			primAtA = primAtB;
-			
-			// Find sensor with given ID (cellID)
-			iterSMap = sensorMap.find(cluster->getCellID());
-			
-			// Sensor has already collected some charge
-			if( iterSMap != sensorMap.end() ) 
-			{
-				// Find strip i in R-Phi
-				iterChMap = iterSMap->second[STRIPRPHI].find(i);
-				
-				// Strip i in R-Phi has already collected some charge
-				if(iterChMap != iterSMap->second[STRIPRPHI].end()) 
-				{
-					// Get signal at strip i
-					signal = iterChMap->second;
-					
-					// Update signal information (add current charge to the total)
-					signal->updateCharge(charge);
-					
-					// Update MC truth information
-					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-				}
-				// Strip i in R-Phi hasn't collected any charge yet
-				else 
-				{
-					// Create signal, i.e. total charge + time when particle crossed the detector,
-					// all corresponding to strip i
-					signal = new Signal(charge, cluster->getTime());
-					
-					// Save MC truth information
-					signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-					
-					// Save information about strip i in R-Phi
-					iterSMap->second[STRIPRPHI][i] = signal;
-				}
-			}
-			// Sensor has not collected any charge yet
-			else 
-			{
-				// Create map of strips
-				StripChargeMap * stripMap = new StripChargeMap[2];
-				
-				// Create signal, i.e. total charge + time when particle crossed the detector,
-				// all corresponding to strip i
-				signal = new Signal(charge, cluster->getTime());
-				
-				// Save MC truth information
-				signal->updateSimHitMap(cluster->getSimTrackerHit(), charge);
-				
-				// Save information about strip i in R-Phi
-				stripMap[STRIPRPHI][i]          = signal;
-				sensorMap[cluster->getCellID()] = stripMap;
-			}
-			
-		} // Calculate signal at each strip
-		// Release memory
-		delete cluster;
-	cluster = 0;
-	
-	} // For electrons
-
-	eClusterVec.clear();*/
-	
 	// Hole clusters
 	for( iterVec=hClusterVec.begin(); iterVec!=hClusterVec.end(); iterVec++ ) 
 	{
@@ -926,7 +785,8 @@ std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um
 << (cluster->getPosY()-3.0*diffSigma) << ", " << cluster->getPosY() << "," 
 << (cluster->getPosY()+3.0*diffSigma) << ", SensorID:" << _currentSensorID << " Tipo Strip:" 
 << stripType << " Charge collect before repartir: " << chargeCollect<< std::endl;
-std::cout << "Y mean stereo frame " << _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::Hep3Vector(0.,cluster->getPosY(),cluster->getPosZ())).getY() << std::endl; */
+std::cout << "Y mean stereo frame " << 
+_geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::Hep3Vector(0.,cluster->getPosY(),cluster->getPosZ())).getY() << std::endl; */
 
 		// The calculus for the strips must be done in the (rotated by the
 		// stereo angle) local frame
