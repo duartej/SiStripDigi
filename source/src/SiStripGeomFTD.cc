@@ -114,6 +114,7 @@ void SiStripGeomFTD::initGearParams()
 	_layerZ.reserve(2*_numberOfLayers);
 	_layerRadius.reserve(2*_numberOfLayers); 
 	_layerPhi0.reserve(2*_numberOfLayers);
+	_layerHalfPhi.reserve(2*_numberOfLayers);
 	_layerPetalOpAngle.reserve(2*_numberOfLayers);
 	_layerOuterRadius.reserve(2*_numberOfLayers);
 	_sensorThick.reserve(2*_numberOfLayers);
@@ -131,6 +132,7 @@ void SiStripGeomFTD::initGearParams()
 		_layerZ.push_back(_ftdLayer->getZposition(i)*mm);
 		_layerRadius.push_back( _ftdLayer->getSensitiveRinner(i)*mm);
 		_layerPhi0.push_back(_ftdLayer->getPhi0(i));
+		_layerHalfPhi.push_back(_ftdLayer->getPhiHalfDistance(i));
 		_layerPetalOpAngle.push_back(_ftdLayer->getPhiHalfDistance(i));
 		_layerOuterRadius.push_back(_ftdLayer->getSensitiveRinner(i)+
 				_sensorLength[i]*mm);
@@ -155,6 +157,7 @@ void SiStripGeomFTD::initGearParams()
 	_layerZ.insert(_layerZ.end(),_layerZ.begin(),_layerZ.end());
 	_layerRadius.insert(_layerRadius.end(),_layerRadius.begin(),_layerRadius.end());
 	_layerPhi0.insert(_layerPhi0.end(),_layerPhi0.begin(),_layerPhi0.end());
+	_layerHalfPhi.insert(_layerHalfPhi.end(),_layerHalfPhi.begin(),_layerHalfPhi.end());
 	_layerPetalOpAngle.insert(_layerPetalOpAngle.end(),_layerPetalOpAngle.begin(),
 			_layerPetalOpAngle.end());
 	_layerOuterRadius.insert(_layerOuterRadius.end(),_layerOuterRadius.begin(),
@@ -816,15 +819,35 @@ std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;
 }*/
 
 //
+// Get the stereo angle given a sensor
+// 
+double SiStripGeomFTD::getStereoAngle(const int & diskID, const int & sensorID) const
+{
+	// Stereo angle (if proceed)
+	double stAngle = 0.0;
+	
+	if(sensorID == 3 || sensorID == 4)
+	{
+		stAngle = 5e-3;
+	}
+
+	return stAngle;
+}
+
+
+//
 // Get strip ID, point is given in local ref. system
 // 
 //
 int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 		const double & posRPhi, const double & posZ) const
 {
+	//FIXME: BORRA
+	double posRPhiRot=0.;
+	double yorigen=0.0;
 	// Get pitch
 	double sensPitch = getSensorPitch(diskID,sensorID,posZ);
-	if(sensPitch == 0) 
+	if(sensPitch < 1e-40) 
 	{
 		streamlog_out(ERROR) << "SiStripGeomFTD::getStripID " 
 			<< "- division by zero (sensPitch is zero)!!!"
@@ -842,18 +865,15 @@ int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 	}
 	else 
 	{
-		// Stereo angle (if proceed)
-		double stAngle = 0.0;;
-
-		if(sensorID == 3 || sensorID == 4)
-		{
-			stAngle = 5e-3;//getStereoAngleStrip(diskID,sensorID); --> Ponlo abajo
-		}
-		
 		CLHEP::Hep3Vector pointRot = transformPointToRotatedLocal(diskID,sensorID,
-				stAngle, CLHEP::Hep3Vector(0.0,posRPhi,posZ) );
-		const double posRPhiRot = pointRot.getY();
-		stripID = floor(posRPhiRot/sensPitch);
+				CLHEP::Hep3Vector(0.0,posRPhi,posZ) );
+		posRPhiRot = pointRot.getY();
+		// Put the strip 0 in the edge of the petal (recall
+		// the y=0 of the local system begins in the long edge)
+		const double tanPhi = tan(_ftdLayer->getPhiHalfDistance(diskID));
+		yorigen = (getSensorLength(diskID)-pointRot.getZ())*tanPhi;
+
+		stripID = floor((posRPhiRot-yorigen)/sensPitch);
 		if(stripID >= sensNStrips) 
 		{
 			stripID = sensNStrips - 1;
@@ -862,18 +882,19 @@ int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 	// Error
 	if(stripID >= sensNStrips) 
 	{
-		streamlog_out(ERROR) << "SiStripGeom::getStripIDInRPhi " 
+		streamlog_out(ERROR) << "SiStripGeom::getStripID " 
 			<< "- stripID in RPhi greater than number of strips!!!"
 			<< std::endl;
 		exit(-1);
 	}
-/*std::cout << " SiStripGeomFTD::getStripIDInRPhi" << std::endl;
-std::cout << "----> " << posRPhi << std::endl;
-std::cout << "----> " << sensPitch << std::endl;
-std::cout << "----> " << sensNStrips << std::endl;
-std::cout << "----> " << stripID << " (en zlocal=" << posZ << ")" << std::endl;
-std::cout << "----> " << sensPitch*stripID << " (Y-position)" << std::endl;
-std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;*/
+std::cout << " SiStripGeomFTD::getStripID" << std::endl;
+std::cout << "----> Y=" << posRPhi << " (y/Pitch):" << (posRPhi-yorigen)/sensPitch << std::endl;
+std::cout << "----> YRot=" << posRPhiRot << " (y/Pitch):" << (posRPhiRot-yorigen)/sensPitch << std::endl;
+std::cout << "----> Pitch=" << sensPitch << std::endl;
+std::cout << "----> Number Strips:" << sensNStrips << std::endl;
+std::cout << "----> StripID:" << stripID << " (en zlocal=" << posZ << ")" << std::endl;
+std::cout << "----> NS*sID=" << yorigen+sensPitch*stripID << " (Y-position)" << std::endl;
+std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;
 	return stripID;
 }
 
@@ -923,36 +944,6 @@ std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;*/
 double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID, 
 		const double & posZ) const
 {
-	std::vector<double> const * sensorPitch = 0;
-	
-	// Stereo angle (if proceed)
-	double stAngle = 0.0;;
-
-	if(sensorID == 1 || sensorID == 2)
-	{
-		sensorPitch = &_sensorPitchInFront;
-	}
-	else if(sensorID == 3 || sensorID == 4)
-	{
-		sensorPitch = &_sensorPitchInRear;
-		stAngle = 5e-3;//getStereoAngleStrip(diskID,sensorID); --> Ponlo abajo
-	}
-	else
-	{
-		streamlog_out(ERROR) << "SiStripGeomFTD::getSensorPitch "
-			<< " - Inconsistent ID of sensor: '" << sensorID << "'" << std::endl;
-		exit(-1);
-	}
-
-	//FIXME: Meter un if si no hay stereo angle pasar de hacer toda la mierda
-	// de abajo
-
-	if( (getLayerType(diskID) != strip) && 
-			(sensorPitch->size() < (unsigned int)diskID) )
-	{
-		return 0.0;
-	}
-
 	if( (posZ < -EPS*um) && (posZ > (getSensorLength(diskID) + EPS*um)) )
 	{
 		streamlog_out(ERROR) 
@@ -992,10 +983,10 @@ double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID,
 	rotcentre.rotateX(-stAngle);
 	// And extract the point in that system
 	point += rotcentre;*/
-	CLHEP::Hep3Vector point = transformPointToRotatedLocal( diskID, sensorID, stAngle,
+	CLHEP::Hep3Vector point = transformPointToRotatedLocal( diskID, sensorID,
 			CLHEP::Hep3Vector(0.,0.0,posZ) );
 
-	// Now we can deal the petal in the usual way
+	// Now we can deal the petal in the usual way. 
 	const double width_z = 2.0*(getSensorLength(diskID)-point.getZ())*tanPhi;
 		
 	// Note: to avoid incoherences
@@ -1004,35 +995,56 @@ double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID,
 	{
 		totalwidth = getSensorWidth(diskID);
 	}
+std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+std::cout << " totalwidth= " << totalwidth << " width_z= " << width_z << " NStrips:" << getSensorNStrips(diskID,sensorID) << std::endl;
+std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 
 	return ((totalwidth-width_z)/getSensorNStrips(diskID,sensorID));
 }
 
 //
+// Get the Y position (in the local ref. frame) for the given strip, posZ 
+// is the point in the local reference system of the petal
 //
-CLHEP::Hep3Vector SiStripGeomFTD::getStripPos(const int & diskID, const int & sensorID, 
-		const int & stripID) const
+double SiStripGeomFTD::getStripPos(const int & diskID, const int & sensorID, 
+		const int & stripID, const double & posZ) const
 {
+	// Can't be stripID = 0
+	if(stripID <= 0)
+	{
+		streamlog_out(ERROR) << "SoStripGeomFTD::getStripPos "
+			<< "- incoherent stripID=" << stripID << "!!" 
+			<< std::endl;
+		exit(-1);
+	}
+
+	// Extract zPos position in the local rotated frame (if proceed)
+	const double zPosPrime = transformPointToRotatedLocal( diskID,
+			sensorID, CLHEP::Hep3Vector(0.0,0.0,posZ) ).getZ();
+
 	// Get pitch
-/*	double sensPitch = getSensorPitchInRPhi(layerID, posZ);
-	
+	double sensPitch = getSensorPitch(diskID,sensorID,zPosPrime);
+	if(sensPitch < 1e-40) 
+	{
+		streamlog_out(ERROR) << "SiStripGeomFTD::getStripPos " 
+			<< "- division by zero (sensPitch is zero)!!!"
+			<< std::endl;
+		exit(-1);
+	}
+
 	// Calculate position
 	double posRPhi = sensPitch*(stripID + 0.5);
-	
 	// Error
-	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(layerID)) ) 
+	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(diskID)) ) 
 	{
 		streamlog_out(ERROR) 
-			<< "SiStripGeom::getStripPosInRPhi - position out of sensor!!!"
+			<< "SiStripGeom::getStripPos - position out of sensor!!!"
 			<< std::endl;
 		exit(-1);
 	}
 	
 	// Return R-Phi position of given strip in local ref. system
-	return posRPhi;*/
-	std::cout << "SiStripGeomFTD::getStripPos:  NOT IMPlEMENTED YET!! " << std::endl;
-	exit(0);
-	return CLHEP::Hep3Vector(0.,0.,0.);
+	return posRPhi;
 }
 
 //
@@ -1041,9 +1053,11 @@ CLHEP::Hep3Vector SiStripGeomFTD::getStripPos(const int & diskID, const int & se
 //
 
 CLHEP::Hep3Vector SiStripGeomFTD::transformPointToRotatedLocal(const int & diskID, 
-		const int & sensorID, const double & stAngle, const CLHEP::Hep3Vector & point) const
+		const int & sensorID, const CLHEP::Hep3Vector & point) const
 {
 	CLHEP::Hep3Vector pointPrime(point);
+
+	const double stAngle = getStereoAngle(diskID,sensorID);
 
 	// Changing reference system: rotate the petal in its centroid point
 	// to obtain the strips with the stereo angle
@@ -1062,13 +1076,19 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToRotatedLocal(const int & diskI
 	// Rotating the posZ vector to the new coordinate system
 	// Now we have the hit point from the system placed in the centre
 	// of the sensor and rotated the stereo angle
-	pointPrime.rotateX(-stAngle);
+//	pointPrime.rotateX(-stAngle);
 	// We need to return to the local ref. frame (defined along this code)
 	// placed in a petal 'rotated'
 	rotcentre.rotateX(-stAngle);
 	// And extract the point in that system
 	pointPrime += rotcentre;
 
+	pointPrime.rotateX(-stAngle);
+	/* // Consistency Check
+	CLHEP::Hep3Vector Orig(0.,0.,0.);
+	Orig = CLHEP::Hep3Vector(0.0,ycentre,zcentre)-rotcentre;
+	std::cout << " pointPrime+O =? P :" << pointPrime + Orig << " =? " << point << std::endl;*/
+	
 	return pointPrime;
 }
 
@@ -1113,6 +1133,7 @@ void SiStripGeomFTD::printGearParams() const
          streamlog_out(MESSAGE2) << "  Radius[mm]:      " << _layerRadius[i]/mm   << std::endl;
          streamlog_out(MESSAGE2) << "  Width[mm]:       " << _ladderWidth[i]/mm   << std::endl;
          streamlog_out(MESSAGE2) << "  Length[mm]:      " << _ladderLength[i]/mm  << std::endl;
+         streamlog_out(MESSAGE2) << "  Petal SemiAngle: " << _layerHalfPhi[i]     << std::endl;
          streamlog_out(MESSAGE2) << "  Phi0:            " << _layerPhi0[i]        << std::endl;
          streamlog_out(MESSAGE2) << "  Theta:           " << _layerTheta[i]       << std::endl;
          streamlog_out(MESSAGE2) << "  OffsetY[mm]:     " << _ladderOffsetY[i]/mm << std::endl;

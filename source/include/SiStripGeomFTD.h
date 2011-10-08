@@ -108,11 +108,14 @@ class SiStripGeomFTD: public SiStripGeom
 				const double & posZ) const;
 		
 		//! Get position in the local ref. system for the stripID
-		virtual CLHEP::Hep3Vector getStripPos(const int & diskID, 
-				const int & sensorID, const int & stripID) const;
+		virtual double getStripPos(const int & diskID, 	const int & sensorID, 
+				const int & stripID, const double & posZ) const;
 
 		//! Get number of strips per sensor
 		virtual int getSensorNStrips(const int & diskID, const int & sensorID) const;
+		
+		//! Get the stereo angle of the strips 
+		double getStereoAngle(const int & diskID,const int & sensorID) const;
 		
 		// OTHER METHODS - IDENTIFYING
 		//! Get strip ID (in Phi), points are given in local ref. system; strips are
@@ -143,8 +146,7 @@ class SiStripGeomFTD: public SiStripGeom
 		//! Transforming a given point to the local ref. frame of a petal 
 		//! which is rotated around its center an angle stAngle
 		CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
-				const int & sensorID, const double & stAngle, 
-				const CLHEP::Hep3Vector & point) const;
+				const int & sensorID, const CLHEP::Hep3Vector & point) const;
 
 		std::vector<double> _layerOuterRadius;
 		std::vector<double> _layerPetalOpAngle;

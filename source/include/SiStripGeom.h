@@ -110,6 +110,8 @@ class SiStripGeom
 		//!Get layer radius
 		virtual double getLayerRadius(short int layerID) const;
 	
+		//!Get layer semiangle
+		virtual double getLayerHalfPhi(const int & layerID) const;
 		//!Get layer phi zero angle
 		virtual double getLayerPhi0(short int layerID) const;
 
@@ -225,11 +227,14 @@ class SiStripGeom
 //		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
 //				double posZ) const = 0;
 		//!Get strip position
-		virtual CLHEP::Hep3Vector getStripPos(const int & layerID, 
-				const int & sensorID, const int & stripID) const =0;
+		virtual double getStripPos(const int & layerID, const int & sensorID, 
+				const int & stripID, const double & posZ) const =0;
 		//!Get strip ID
 		virtual int getStripID(const int & layerID, const int & sensorID, 
 				const double & posRPhi, const double & posZ) const = 0;
+
+		//!Get stereo angle of strip
+		virtual double getStereoAngle(const int & layerID, const int & sensorID) const = 0;
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters

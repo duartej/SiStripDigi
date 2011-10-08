@@ -194,6 +194,25 @@ double SiStripGeom::getLayerRadius(short int layerID) const
 }
 
 //
+// Get semiangle layer (petals)
+//
+double SiStripGeom::getLayerHalfPhi(const int & layerID) const
+{
+	//TODO: Posible mejora del algoritmo: try-catch
+	//      capturando un range exception --> mensaje error
+	if (_layerHalfPhi.size()>(unsigned short int)layerID)
+	{
+		return _layerHalfPhi[layerID];
+	}
+	else 
+	{
+		streamlog_out(ERROR) << "SiStripGeom::getLayerHalfPhi - layerID: " << layerID << " out of range!!!"
+			<< std::endl;
+		exit(0);
+	}
+}
+
+//
 // Get layer phi zero angle
 //
 double SiStripGeom::getLayerPhi0(short int layerID) const

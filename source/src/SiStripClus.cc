@@ -613,8 +613,7 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 				// Current strip ID, posZ & charge
 				int stripID        = iterChMap2->first;
 				//double stripPosZ   = _geometry->getStripPosInZ(layerID, stripID);
-				CLHEP::Hep3Vector pointPos   = _geometry->getStripPos(layerID, sensorID,stripID);
-				double stripPosZ = pointPos.getZ();
+				double  stripPosZ   = _geometry->getStripPos(layerID, sensorID,stripID,0.0);
 				double stripCharge = iterChMap2->second->getCharge();
 				
 				// Update info about MC particles which contributed
@@ -853,7 +852,7 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
                   // Current strip ID, posRPhi & charge
                   int stripID         = iterChMap2->first;
                   //double stripPosRPhi = _geometry->getStripPosInRPhi(layerID, stripID, pClusterZ->getPosZ());
-                  double stripPosRPhi = _geometry->getStripPos(layerID, sensorID, stripID).getY();
+                  double stripPosRPhi = _geometry->getStripPos(layerID, sensorID, stripID,pClusterZ->getPosZ());
                   double stripCharge  = iterChMap2->second->getCharge();
 
                   // Update info about MC particles which contributed
