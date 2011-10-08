@@ -238,9 +238,6 @@ class SiStripGeom
 		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
 				const int & sensorID, const CLHEP::Hep3Vector & point) const = 0;
 
-		//!Get stereo angle of strip
-		virtual double getStereoAngle(const int & layerID, const int & sensorID) const = 0;
-
 		// PRINT METHODS
 		//!Method printing general Gear parameters
 		virtual void printGearParams() const = 0;

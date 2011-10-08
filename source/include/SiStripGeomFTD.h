@@ -119,8 +119,6 @@ class SiStripGeomFTD: public SiStripGeom
 		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
 				const int & sensorID, const CLHEP::Hep3Vector & point) const;
 
-		//! Get the stereo angle of the strips 
-		virtual double getStereoAngle(const int & diskID,const int & sensorID) const;
 		
 		// OTHER METHODS - IDENTIFYING
 		//! Get strip ID (in Phi), points are given in local ref. system; strips are
@@ -148,6 +146,8 @@ class SiStripGeomFTD: public SiStripGeom
 		gear::FTDLayerLayout * _ftdLayer;
 		//FIXME PROVISIONAL?
 		double getLadderOffsetX(const short int & layerID) const;
+		//! Get the stereo angle of the strips 
+		double getStereoAngle(const int & diskID,const int & sensorID) const;
 
 		std::vector<double> _layerOuterRadius;
 		std::vector<double> _layerPetalOpAngle;

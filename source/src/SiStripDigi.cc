@@ -920,27 +920,29 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		double sensorPitch = _geometry->getSensorPitch( _currentLayerID,
 				_currentSensorID, cluster->getPosZ());
 
-std::cout << "======================================== New Cluster"  << std::endl;
+/*std::cout << "======================================== New Cluster"  << std::endl;
 std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um]:" 
 << sensorPitch/um << ")\n\t cluster y(min,mean,max)[um]:" 
 << (cluster->getPosY()-3.0*diffSigma) << ", " << cluster->getPosY() << "," 
 << (cluster->getPosY()+3.0*diffSigma) << ", SensorID:" << _currentSensorID << " Tipo Strip:" 
 << stripType << " Charge collect before repartir: " << chargeCollect<< std::endl;
-std::cout << "Y mean stereo frame " << _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::Hep3Vector(0.,cluster->getPosY(),cluster->getPosZ())).getY() << std::endl; 
+std::cout << "Y mean stereo frame " << _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::Hep3Vector(0.,cluster->getPosY(),cluster->getPosZ())).getY() << std::endl; */
 
 		// The calculus for the strips must be done in the (rotated by the
 		// stereo angle) local frame
 		const double tanPhi = tan(_geometry->getLayerHalfPhi(_currentLayerID));
-		const double stAngle = _geometry->getStereoAngle(_currentLayerID,_currentSensorID);
+		//const double stAngle = _geometry->getStereoAngle(_currentLayerID,_currentSensorID);
 		const CLHEP::Hep3Vector pointRot = _geometry->transformPointToRotatedLocal(
 				_currentLayerID,_currentSensorID, 
 				CLHEP::Hep3Vector(0.,cluster->getPosY(),cluster->getPosZ()) );
 		const double zRot = pointRot.getZ();
 		const double yorigenRot = (_geometry->getSensorLength(_currentLayerID)-zRot)*tanPhi;
+		
+		//  Gauss distr. - primitive function: from A to B
 		double meanRot    = pointRot.getY();
 
 		//  Gauss distr. - primitive function: from A to B
-		double mean       = cluster->getPosY(); //cluster->getPosZ();
+		//double mean       = cluster->getPosY(); //cluster->getPosZ();
 
 
 		double sigmaSqrt2 = diffSigma * sqrt(2.);
@@ -955,7 +957,7 @@ std::cout << "Y mean stereo frame " << _geometry->transformPointToRotatedLocal(_
 		//  Strip signal
 		Signal * signal = 0;
 		
-std::cout << "---- Entrando loop del calculo de senyal por strip " << std::endl;
+//std::cout << "---- Entrando loop del calculo de senyal por strip " << std::endl;
 		//  Calculate signal at each strip and save
 		for(int i=iMinStrip; i<=iMaxStrip; i++) 
 		{
@@ -967,14 +969,14 @@ std::cout << "---- Entrando loop del calculo de senyal por strip " << std::endl;
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
-//std::cout << " y-position strip " << i << ": " << (yorigenRot+i*sensorPitch) 
-//	<< " y-position strip " << i+1 << ": " << (yorigenRot+(i+1)*sensorPitch) << std::endl;
-//std::cout << " y-origen (Primer strip situado en): " << yorigenRot << std::endl;
-//std::cout << " z-position: " << zRot << std::endl;
-std::cout << "         Charge deposited in Strip-" << i << ": "  << charge << std::endl;
-//std::cout << " Window Position of the charge y[um]:" << (cluster->getPosY()-3.0*diffSigma) 
-//	<< ", " << cluster->getPosY() << "," << (cluster->getPosY()+3.0*diffSigma) 
-//	<< std::endl;
+////std::cout << " y-position strip " << i << ": " << (yorigenRot+i*sensorPitch) 
+////	<< " y-position strip " << i+1 << ": " << (yorigenRot+(i+1)*sensorPitch) << std::endl;
+////std::cout << " y-origen (Primer strip situado en): " << yorigenRot << std::endl;
+////std::cout << " z-position: " << zRot << std::endl;
+//std::cout << "         Charge deposited in Strip-" << i << ": "  << charge << std::endl;
+////std::cout << " Window Position of the charge y[um]:" << (cluster->getPosY()-3.0*diffSigma) 
+////	<< ", " << cluster->getPosY() << "," << (cluster->getPosY()+3.0*diffSigma) 
+////	<< std::endl;
 			
 			// New integration starting point
 			primAtA = primAtB;
