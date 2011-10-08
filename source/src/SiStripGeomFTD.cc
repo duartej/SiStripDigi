@@ -834,6 +834,8 @@ double SiStripGeomFTD::getStereoAngle(const int & diskID, const int & sensorID) 
 	return stAngle;
 }
 
+//double SiStripGeomFTD::get
+
 
 //
 // Get strip ID, point is given in local ref. system
@@ -843,6 +845,7 @@ int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 		const double & posRPhi, const double & posZ) const
 {
 	//FIXME: BORRA
+	double zRot = 0.0;
 	double posRPhiRot=0.;
 	double yorigen=0.0;
 	// Get pitch
@@ -868,6 +871,7 @@ int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 		CLHEP::Hep3Vector pointRot = transformPointToRotatedLocal(diskID,sensorID,
 				CLHEP::Hep3Vector(0.0,posRPhi,posZ) );
 		posRPhiRot = pointRot.getY();
+		zRot = pointRot.getZ();
 		// Put the strip 0 in the edge of the petal (recall
 		// the y=0 of the local system begins in the long edge)
 		const double tanPhi = tan(_ftdLayer->getPhiHalfDistance(diskID));
@@ -887,14 +891,16 @@ int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 			<< std::endl;
 		exit(-1);
 	}
-std::cout << " SiStripGeomFTD::getStripID" << std::endl;
-std::cout << "----> Y=" << posRPhi << " (y/Pitch):" << (posRPhi-yorigen)/sensPitch << std::endl;
-std::cout << "----> YRot=" << posRPhiRot << " (y/Pitch):" << (posRPhiRot-yorigen)/sensPitch << std::endl;
+/*std::cout << "-----+ SiStripGeomFTD::getStripID" << std::endl;
+//std::cout << "----> Y   =" << posRPhi << " (y/Pitch):" << (posRPhi-yorigen)/sensPitch << std::endl;
+std::cout << "----> YRot =" << posRPhiRot << " (y/Pitch):" << (posRPhiRot-yorigen)/sensPitch << std::endl;
 std::cout << "----> Pitch=" << sensPitch << std::endl;
-std::cout << "----> Number Strips:" << sensNStrips << std::endl;
-std::cout << "----> StripID:" << stripID << " (en zlocal=" << posZ << ")" << std::endl;
-std::cout << "----> NS*sID=" << yorigen+sensPitch*stripID << " (Y-position)" << std::endl;
-std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;
+//std::cout << "----> Number Strips:" << sensNStrips << std::endl;
+std::cout << "----> StripID:" << stripID << std::endl;
+std::cout <<  "----> yOrigenRot:" << yorigen << std::endl;
+std::cout <<  "----> zRot:" << zRot << std::endl;
+std::cout << "----> NS*sID=" << (yorigen+sensPitch*stripID) << " (Y-position)" << std::endl;
+std::cout << "-----+END SiStripGeomFTD::getStripIDInRPhi +------" << std::endl;*/
 	return stripID;
 }
 
@@ -995,9 +1001,6 @@ double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID,
 	{
 		totalwidth = getSensorWidth(diskID);
 	}
-std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-std::cout << " totalwidth= " << totalwidth << " width_z= " << width_z << " NStrips:" << getSensorNStrips(diskID,sensorID) << std::endl;
-std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 
 	return ((totalwidth-width_z)/getSensorNStrips(diskID,sensorID));
 }
@@ -1021,6 +1024,9 @@ double SiStripGeomFTD::getStripPos(const int & diskID, const int & sensorID,
 	// Extract zPos position in the local rotated frame (if proceed)
 	const double zPosPrime = transformPointToRotatedLocal( diskID,
 			sensorID, CLHEP::Hep3Vector(0.0,0.0,posZ) ).getZ();
+	// Extract origen of the sensitive part
+	const double tanPhi = tan(_ftdLayer->getPhiHalfDistance(diskID));
+	const double yorigen = (getSensorLength(diskID)-zPosPrime)*tanPhi;
 
 	// Get pitch
 	double sensPitch = getSensorPitch(diskID,sensorID,zPosPrime);
@@ -1033,7 +1039,7 @@ double SiStripGeomFTD::getStripPos(const int & diskID, const int & sensorID,
 	}
 
 	// Calculate position
-	double posRPhi = sensPitch*(stripID + 0.5);
+	double posRPhi = yorigen+sensPitch*(stripID + 0.5);
 	// Error
 	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(diskID)) ) 
 	{

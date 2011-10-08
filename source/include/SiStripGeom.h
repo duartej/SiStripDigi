@@ -233,6 +233,11 @@ class SiStripGeom
 		virtual int getStripID(const int & layerID, const int & sensorID, 
 				const double & posRPhi, const double & posZ) const = 0;
 
+		//! Transforming a given point to the local ref. frame of a petal 
+		//! which is rotated around its center an angle stAngle
+		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
+				const int & sensorID, const CLHEP::Hep3Vector & point) const = 0;
+
 		//!Get stereo angle of strip
 		virtual double getStereoAngle(const int & layerID, const int & sensorID) const = 0;
 

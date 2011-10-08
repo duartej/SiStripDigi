@@ -114,8 +114,13 @@ class SiStripGeomFTD: public SiStripGeom
 		//! Get number of strips per sensor
 		virtual int getSensorNStrips(const int & diskID, const int & sensorID) const;
 		
+		//! Transforming a given point to the local ref. frame of a petal 
+		//! which is rotated around its center an angle stAngle
+		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
+				const int & sensorID, const CLHEP::Hep3Vector & point) const;
+
 		//! Get the stereo angle of the strips 
-		double getStereoAngle(const int & diskID,const int & sensorID) const;
+		virtual double getStereoAngle(const int & diskID,const int & sensorID) const;
 		
 		// OTHER METHODS - IDENTIFYING
 		//! Get strip ID (in Phi), points are given in local ref. system; strips are
@@ -124,12 +129,12 @@ class SiStripGeomFTD: public SiStripGeom
 		//! of strips in the RPhi LRF plane is dependent of Z (in LRF) due to 
 		//! the trapezoid shape of the sensors.
 		//! That sensor are the faced to IP on each petal (in the current design)
-		int getStripID(const int & diskID, const int & sensorID,
+		virtual int getStripID(const int & diskID, const int & sensorID,
 				const double & posRPhi, const double & posZ ) const;
 
 		//!Method impossed by consistent with the mother class.
 		//!The FTD sensors are all perpendicular to the beam axis
-		double getLadderTheta(short int diskID) const { return M_PI/2.0;}
+		virtual double getLadderTheta(short int diskID) const { return M_PI/2.0;}
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters
@@ -143,10 +148,6 @@ class SiStripGeomFTD: public SiStripGeom
 		gear::FTDLayerLayout * _ftdLayer;
 		//FIXME PROVISIONAL?
 		double getLadderOffsetX(const short int & layerID) const;
-		//! Transforming a given point to the local ref. frame of a petal 
-		//! which is rotated around its center an angle stAngle
-		CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
-				const int & sensorID, const CLHEP::Hep3Vector & point) const;
 
 		std::vector<double> _layerOuterRadius;
 		std::vector<double> _layerPetalOpAngle;
