@@ -236,8 +236,13 @@ void SiStripDigi::init()
 
    _rootFile->cd("");
 
-   _rootELossG4   = new TH1F("ELossG4"     , "G4 - Energy loss in silicon"  , 100, 0., 1400.);
-   _rootELossDigi = new TH1F("ELossDigi"   , "Digi - Energy loss in silicon", 100, 0., 1400);
+   // 
+   _histosmap[ELOSSDIGI] = new TH1F("ELossDigi"   , "Digi - Energy loss in silicon", 100, 0., 1400);
+   _histosmap[ELOSSG4]   = new TH1F("ELossG4"     , "G4 - Energy loss in silicon"  , 100, 0., 1400.);
+ //  _histosmap[NSTRIP]    = new TH1F("NStrip" , "Number of Strip per Sensor", 13154, 1, 13154);  
+
+   _rootELossG4   = new TH1F("ELossG4_V1"     , "G4 - Energy loss in silicon"  , 100, 0., 1400.);
+   _rootELossDigi = new TH1F("ELossDigi_V1"   , "Digi - Energy loss in silicon", 100, 0., 1400);
 #endif
 
 }
@@ -367,10 +372,6 @@ void SiStripDigi::processEvent(LCEvent * event)
 		// Get number of SimTrackerHits in the collection
 		int nHits = colOfSimHits->getNumberOfElements();
 		
-		// Strips Types to loop overt there
-		std::vector<StripType> stripTypesvect;
-		stripTypesvect.push_back(STRIPFRONT);
-		stripTypesvect.push_back(STRIPREAR);
 
 		// Process hits
 		for (int i=0; i<nHits; i++) 
@@ -493,6 +494,52 @@ void SiStripDigi::processEvent(LCEvent * event)
 		// Print final info
 		printStripsInfo("all effects included", sensorMap);
 		
+		// Strips Types to loop overt there
+		std::vector<StripType> stripTypesvect;
+		stripTypesvect.push_back(STRIPFRONT);
+		stripTypesvect.push_back(STRIPREAR);
+
+#ifdef ROOT_OUTPUT_LAND
+		for(SensorStripMap::iterator itSM = sensorMap.begin(); itSM != sensorMap.end();
+				itSM++)
+		{
+			const int cellID = itSM->first;
+			std::cout << "-|| cellID: " << cellID << std::endl;
+			for(std::vector<StripType>::iterator stT = stripTypesvect.begin();
+					stT != stripTypesvect.end(); stT++)
+			{
+				for(StripChargeMap::iterator itSC = itSM->second[*stT].begin();
+						itSC != itSM->second[*stT].end(); itSC++)
+				{
+					std::cout << " |-|- stripID: " <<  itSC->first << std::endl;
+					std::cout << "   |--- Total integrated charge: " <<  itSC->second->getCharge()/fC 
+						<< " fC (" << itSC->second->getCharge() << ")"  << std::endl;
+					std::cout << "   |--- Time                   : " <<  itSC->second->getTime() 
+						<< std::endl;
+					std::cout << "   |-|- Simulated hits " <<  std::endl;
+					SimTrackerHitMap hm = itSC->second->getSimHitMap();
+					for(SimTrackerHitMap::iterator it = hm.begin(); it != hm.end();
+							it++)
+					{
+						std::cout << "     |-- Position Global[mm]  : " 
+							<< "(" << (it->first->getPosition()[0]*mm)/mm 
+							<< "," << (it->first->getPosition()[1]*mm)/mm
+							<< "," << (it->first->getPosition()[2]*mm)/mm << ")" << std::endl;
+						std::cout << "     |-- Energy deposited[keV]: " 
+							<< it->first->getEDep()/keV << "  (w=" << it->second 
+							<< ")" << std::endl;
+						std::cout << "     |-- Path Length[um]      : " 
+							<< it->first->getPathLength()/um << std::endl;
+						std::cout << "     |-- CellID0              : "
+							<< it->first->getCellID0() << std::endl;
+						std::cout << "     |---------------------------" << std::endl;
+					}
+				}
+			}
+			std::cout << std::endl;
+		}
+#endif
+		
 		//
 		// Create new collection (TrackerPulses + relations) from obtained results
 		IMPL::LCCollectionVec * colOfTrkPulses   = new IMPL::LCCollectionVec(LCIO::TRACKERPULSE);
@@ -599,11 +646,11 @@ void SiStripDigi::processEvent(LCEvent * event)
 				 // Save the pulse to the collection
 				 colOfTrkPulses->addElement(trkPulse);
 			     }
-			     
-			     short int layerID  = 0;
+//FIXME: que pinta esto aqui			     
+/*			     short int layerID  = 0;
 			     short int ladderID = 0;
 			     short int sensorID = 0;
-			     _geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
+			     _geometry->decodeCellID(layerID, ladderID, sensorID, cellID);*/
 			     
 			     // Release memory
 			     delete iterChMap->second;
@@ -633,6 +680,8 @@ void SiStripDigi::processEvent(LCEvent * event)
 	
 #ifdef ROOT_OUTPUT_LAND
 	// Save deposited energy in histograms
+	_histosmap[ELOSSDIGI]->Fill(_rootDepEDigi/keV);
+	_histosmap[ELOSSG4]->Fill(_rootDepEG4/keV);
 	_rootELossG4->Fill(_rootDepEG4/keV);
 	_rootELossDigi->Fill(_rootDepEDigi/keV);
 #endif
@@ -745,7 +794,6 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	{
 		DigiCluster * cluster = (*iterVec);
 
-
 		// Calculate charge collected by a strip (using Shockley-Ramo theorem 
 		// dQh = |qClusterH * x / d|)
 		//chargeCollect = cluster->getNCarriers() * 
@@ -844,7 +892,6 @@ _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::
 			// Find sensor with given ID
 			iterSMap = sensorMap.find(cluster->getCellID());
 
-			
 			// Sensor has already collected some charge
 			if(iterSMap != sensorMap.end()) 
 			{
