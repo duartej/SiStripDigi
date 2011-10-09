@@ -568,7 +568,7 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 			colOfRelPlsToSim->setFlag(flag2.getFlag());
 		}
 		
-		// CODIFICATION
+		// CODIFICATION --->FIXME: METHOD IN GEAR (Centralizing...)
 		CellIDEncoder<TrackerPulseImpl> cellEnc(
 				ILDCellID0::encoder_string+",stripType:2,stripID:11",
 				colOfTrkPulses);

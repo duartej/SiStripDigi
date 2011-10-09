@@ -85,7 +85,7 @@ int SiStripGeom::encodeStripID(StripType type, int stripID) const
 //
 // Decode strip ID: FIXME TO BE FIXED---> Now the codification is done with the cellDec
 //
-std::pair<StripType,int> SiStripGeom::decodeStripID(const int & encodedStripID) const 
+/*std::pair<StripType,int> SiStripGeom::decodeStripID(const int & encodedStripID) const 
 {
 	StripType stype;
 	int stripID;
@@ -115,7 +115,7 @@ std::pair<StripType,int> SiStripGeom::decodeStripID(const int & encodedStripID) 
 	}
 
 	return std::pair<StripType,int>(stype,stripID);
-}
+}*/
 
 //
 // Get layer real ID

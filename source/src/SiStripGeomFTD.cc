@@ -231,6 +231,37 @@ void SiStripGeomFTD::updateCanonicalCellID(const int & cellID, const int & strip
 	(*cellEnc)["stripID"]=stripID;	
 }
 
+//
+// Decode Strip type and Strip ID (CellID1) (int version)
+std::pair<StripType,int> SiStripGeomFTD::decodeStripID(const int & cellID1) const
+{
+	UTIL::BitField64 cellDec("stripType:2,stripID:11");
+	cellDec.setValue((lcio::long64)cellID1);
+
+	StripType stripType = static_cast<StripType>( cellDec["stripType"].value() );
+	int stripID   = cellDec["stripID"];
+
+	return std::pair<StripType,int>(stripType,stripID);
+}
+
+//
+// Decode Strip type and Strip ID (CellID1) (BitField version)
+std::pair<StripType,int> SiStripGeomFTD::decodeStripID(const UTIL::BitField64 & cellDec) const
+{
+	if(cellDec["subdet"] != ILDDetID::FTD)
+	{
+		streamlog_out(ERROR) << "SiStripGeomFTD::decodeStripID " 
+			<< " - subdetector is not FTD!!" 
+			<< std::endl;
+		exit(-1);
+	}
+
+	StripType stripType = static_cast<StripType>( cellDec["stripType"].value() );
+	int stripID   = cellDec["stripID"];
+
+	return std::pair<StripType,int>(stripType,stripID);
+}
+
 // FIXME: TO BE PUT IN GEAR ??
 // Returns the layer, module and sensor id. It returns in C-type indexs:
 //---- The notation used in this code:

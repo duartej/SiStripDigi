@@ -92,7 +92,8 @@ class SiStripGeom
 		//!Encode stripID
 		virtual int encodeStripID(StripType type, int stripID) const;
 		//!Decode stripID
-		virtual std::pair<StripType,int> decodeStripID(const int & encodedStripID) const;
+		virtual std::pair<StripType,int> decodeStripID(const int & encStripID) const = 0;
+		virtual std::pair<StripType,int> decodeStripID(const UTIL::BitField64 & cellDec) const = 0;
 		//!Stores the cellID0 and cellID1 of the LCIO object to the file
 		virtual void updateCanonicalCellID(const int & cellID, const int & stripType,
 				const int & stripID, UTIL::BitField64 * bf) = 0;

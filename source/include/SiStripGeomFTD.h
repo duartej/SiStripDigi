@@ -58,6 +58,10 @@ class SiStripGeomFTD: public SiStripGeom
 		//std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit);
 		virtual std::map<std::string,int> decodeCellID(const UTIL::BitField64 & cellID) const;
 		virtual std::map<std::string,int> decodeCellID(const int & cellID) const;
+
+		//!Method to extract strip and strip type (cellID1)
+		virtual std::pair<StripType,int> decodeStripID(const int & encodedStripID) const; 
+		virtual std::pair<StripType,int> decodeStripID(const UTIL::BitField64 & cellEnc) const; 
 		
 		//!Stores the cellID0 and cellID1 of the LCIO object to the file
 		virtual void updateCanonicalCellID(const int & cellID, const int & stripType,

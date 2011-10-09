@@ -1261,15 +1261,18 @@ void SiStripClus::updateMap(const BitField64 * cellID, TrackerPulseImpl * pulse,
 	// CellID0 encodes layerID, ladderID and sensorID; 
 	// cellID1 encodes strip (in Z or R-Phi)
 	int       cellID0 = pulse->getCellID0();
-	//int       cellID1 = pulse->getCellID1();
-	int stripType = (*cellID)["stripType"];
-	int stripID   = (*cellID)["stripID"];
+	int       cellID1 = pulse->getCellID1();
+	//int stripType = (*cellID)["stripType"];
+	//int stripID   = (*cellID)["stripID"];
 	double    charge  = pulse->getCharge()*fC;			
-	// decode stripID and stripType
-//	std::pair<StripType,int> tpIdpair(_geometry->decodeStripID(cellID1)); --> FIXME
+
+	// Decode stripType and stripID
+	std::pair<StripType,int> tpIdpair = _geometry->decodeStripID(cellID1);
+	std::cout << tpIdpair.first << " " << tpIdpair.second << std::endl;exit(0);
+
 	
-//	const StripType stripType = tpIdpair.first;
-//	const int stripID = tpIdpair.second;
+	const StripType stripType = tpIdpair.first;
+	const int stripID = tpIdpair.second;
 	
 	// Controlling some errors
 	if( stripType != STRIPFRONT && stripType != STRIPREAR )
