@@ -6,6 +6,9 @@
 //- created only 1 relation TrackerPuls <--> SimTrackerHit, removed relations TrackerPulse <--> MCParticle, MCParticle <--> SimTrackerHit, Z. Drasal May 2010
 //- corrected charge units, Z. Drasal May 2010
 
+
+// FIXME: ?? No guarda los clusters con carga negativa??
+
 #include "SiStripDigi.h"
 
 #include "SiStripGeomBuilder.h"
@@ -1100,7 +1103,6 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 	   layerID = bfMap["layer"];
 	   ladderID= bfMap["module"];
 	   sensorID= bfMap["sensor"];
-	   std::cout << " ----> Layer: " << layerID << " petal:" << ladderID << " sensorID:" << sensorID << std::endl;
 	   //_geometry->decodeCellID(layerID, ladderID, sensorID, iterSMap->first);
 	   
 	   // Define strip map with recalculated signals

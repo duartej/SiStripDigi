@@ -352,24 +352,25 @@ void SiStripClus::processEvent(LCEvent * event)
 					colOfTrkPulses->getElementAt(i) );
 			
 			// Update the sensor strip map with the pulse
-			updateMap(&cellIDDec(pulse), pulse, sensorMap);
+			updateMap(pulse, sensorMap);
 		} 
-/*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
 {
-std::cout << "----- cellID:" << iterSMap->first << std::endl;
-std::cout << "       - Type: " << STRIPRPHI << std::endl;
-	// Strips in R-Phi
-	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++)
+/*std::cout << "----- cellID:" << iterSMap->first << std::endl;
+std::cout << "       - Type: " << STRIPFRONT << std::endl;
+	// Strips in FRONT
+	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); iterChMap!=iterSMap->second[STRIPFRONT].end(); iterChMap++)
 	{
 std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
 	}
-        // Strips in Z
-std::cout << "       - Type: " << STRIPZ << std::endl;
-	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++)
+        // Strips in REAR
+std::cout << "       - Type: " << STRIPREAR << std::endl;
+	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPREAR].begin(); iterChMap!=iterSMap->second[STRIPREAR].end(); iterChMap++)
 	{
 std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
 	}
-}*/
+}
+exit(0);*/
       //
       // Find clusters
       ClsVec clsVec;
@@ -476,7 +477,6 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 		layerID = bfmap["layer"];
 		ladderID= bfmap["module"];
 		sensorID= bfmap["sensor"];
-		//_geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
 		
 		//
 		// Clusters in Z
@@ -485,8 +485,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 		{
 			//
 			// Zero: Save new candidate for seed strip + MC true info
-			int seedStrip  = iterChMap->first;  //FIXME Inicializalo aqui
-			double seedCharge = iterChMap->second->getCharge(); //FIXME init aqui
+			int seedStrip  = iterChMap->first;
+			double seedCharge = iterChMap->second->getCharge();
 			
 			const SimTrackerHitMap & seedSimHitMap = 
 				iterChMap->second->getSimHitMap();
@@ -502,7 +502,7 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 			clsStrips[seedStrip] = new Signal(seedCharge, 0.);
 			clsStrips[seedStrip]->updateSimHitMap(seedSimHitMap);
 
-			// Set this charge as zero to a[STRIPRPHI]void double counting
+			// Set this charge as zero to avoid double counting
 			iterChMap->second->setCharge(0.);
 			
 			// Continue searching - find left and right neighbours
@@ -512,8 +512,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 			
 			if(_floatStripsZ) 
 			{
-				leftStrip    = seedStrip - 2;
-				rightStrip   = seedStrip + 2;
+				leftStrip--;
+				rightStrip--;
 			}
 				
 			double adjCharge = 0;
@@ -527,12 +527,17 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 				goLeft  = false;
 			}
 //			if(rightStrip >= _geometry->getSensorNStripsInZ(layerID)) 
-			if(rightStrip >= _geometry->getSensorNStrips(layerID,sensorID)) 
+			if(rightStrip >= _geometry->getSensorNStrips(layerID,sensorID)) //FIXME: >= o solo > ???
 			{
 				goRight = false;
 			}
-				
-			//
+		
+			// ---> Abajo codigo repetido
+			//      goleft, leftStrip , siguiente strip -  
+			//      gorigth, rightStrip, siguiente strip +
+			// ---> Puede hacerse tambien aprovechando que el mapa ordena
+			//      de menor a mayor (o al reves no me acuerdo..) 
+			//      podemos pues ir de izq a derecha y de derecha a izq usando ++ -- en el iter y parando en rend() end()
 			// Second: search for left neighbours
 			while( goLeft && ((iterSMap->second[STRIPZ].find(leftStrip))
 						!=iterSMap->second[STRIPZ].end()) ) 
@@ -1254,31 +1259,29 @@ void SiStripClus::calcResolution(short int layerID, double hitTheta, float * cov
 //
 // Method to save the signal 
 //
-// FIXME: Returns true if everything was fine
-void SiStripClus::updateMap(const BitField64 * cellID, TrackerPulseImpl * pulse,  
+// FIXME: Returns the SensorStripMap
+void SiStripClus::updateMap(TrackerPulseImpl * pulse,  
 		SensorStripMap & sensorMap )
 {
 	// CellID0 encodes layerID, ladderID and sensorID; 
 	// cellID1 encodes strip (in Z or R-Phi)
 	int       cellID0 = pulse->getCellID0();
 	int       cellID1 = pulse->getCellID1();
-	//int stripType = (*cellID)["stripType"];
-	//int stripID   = (*cellID)["stripID"];
-	double    charge  = pulse->getCharge()*fC;			
+	
+	double    charge  = pulse->getCharge()*fC;
 
 	// Decode stripType and stripID
 	std::pair<StripType,int> tpIdpair = _geometry->decodeStripID(cellID1);
-	std::cout << tpIdpair.first << " " << tpIdpair.second << std::endl;exit(0);
-
 	
 	const StripType stripType = tpIdpair.first;
 	const int stripID = tpIdpair.second;
+	if(charge < 0.0) std::cout << "HOLA-----> " << stripID << " charge:" << charge <<std::endl;
 	
 	// Controlling some errors
 	if( stripType != STRIPFRONT && stripType != STRIPREAR )
 	{
 		streamlog_out(ERROR) 
-			<< "cellID1 - problem to identify if strips in Z or R-Phi!!!" 
+			<< "cellID1 - problem to identify if strips in FRONT or REAR!!!" 
 			<< std::endl;
 		exit(0);
 	}
@@ -1329,8 +1332,6 @@ void SiStripClus::updateMap(const BitField64 * cellID, TrackerPulseImpl * pulse,
 			iterChMap->second->updateSimHitMap(simHit, weight);
 		}
 	}
-	
-
 	//FIXME CONTROL DE ERRORES
 	//return true;
 }
