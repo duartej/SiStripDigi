@@ -289,42 +289,6 @@ std::map<std::string,int> SiStripGeomFTD::decodeCellID(const UTIL::BitField64 & 
 	return codmap;
 }
 
-// FIXME: TO BE DEPRECATED!!
-/*std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerHit * & simHit)
-{
-	// Encoded disks: 0,...,6  positives
-	//                7,...,13 negatives
-	const static int SHIFT_LAYER =0;   // DISKS
-	const static int SHIFT_LADDER=9;   // LADDER
-	const static int SHIFT_SENSOR=17;  // SENSOR
-	
-	const static unsigned int MASK_LAYER =(unsigned int)0x000001FF; 
- 	const static unsigned int MASK_LADDER=(unsigned int)0x0001FE00;
-	const static unsigned int MASK_SENSOR=(unsigned int)0x01FE0000;
-	const static unsigned int NBITS_LAYER=(unsigned int)0x000001FF;
-
-
-	const unsigned int code = simHit->getCellID();
-
-        unsigned int layerid = (code & MASK_LAYER) >> SHIFT_LAYER;
-        unsigned int ladderid= (code & MASK_LADDER) >> SHIFT_LADDER;
-        unsigned int sensorid= (code & MASK_SENSOR) >> SHIFT_SENSOR;
-
-        // Checking the negative Z
-        if( layerid > 7 )
-        {
-                // 
-                layerid = (~layerid & NBITS_LAYER)+1;
-		layerid += 7;
-        }
-	std::map<std::string,short int> id;
-        id["layer"] = (layerid-1);
-        id["ladder"]= ladderid-1;
-        id["sensor"]= sensorid;
-	
-	return id;
-}*/
-
 // Added
 double SiStripGeomFTD::getLadderOffsetX(const short int & layerID) const
 {

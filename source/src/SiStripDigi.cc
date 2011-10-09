@@ -503,7 +503,7 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 		stripTypesvect.push_back(STRIPREAR);
 
 #ifdef ROOT_OUTPUT_LAND
-		for(SensorStripMap::iterator itSM = sensorMap.begin(); itSM != sensorMap.end();
+/*		for(SensorStripMap::iterator itSM = sensorMap.begin(); itSM != sensorMap.end();
 				itSM++)
 		{
 			const int cellID = itSM->first;
@@ -540,7 +540,7 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 				}
 			}
 			std::cout << std::endl;
-		}
+		}*/
 #endif
 		
 		//
