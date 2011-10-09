@@ -213,12 +213,13 @@ void SiStripGeomFTD::initGearParams()
 void SiStripGeomFTD::updateCanonicalCellID(const int & cellID, const int & stripType,
 		const int & stripID, UTIL::BitField64 * cellEnc)
 {
+	std::map<std::string,int> bfmap = decodeCellID(cellID);
 	(*cellEnc)["subdet"]=ILDDetID::FTD;
-	short int layer=-1;
-	short int module=-1;
-	short int sensor=-1;
+	short int layer = bfmap["layer"];
+	short int module= bfmap["module"];
+	short int sensor= bfmap["sensor"];
 
-	decodeCellID(layer,module,sensor,cellID);
+	//decodeCellID(layer,module,sensor,cellID);
 
 	int realLayer = getLayerRealID(layer);
 
@@ -230,9 +231,66 @@ void SiStripGeomFTD::updateCanonicalCellID(const int & cellID, const int & strip
 	(*cellEnc)["stripID"]=stripID;	
 }
 
+// FIXME: TO BE PUT IN GEAR ??
+// Returns the layer, module and sensor id. It returns in C-type indexs:
+//---- The notation used in this code:
+//     Layer:  0,...., 6 (Positive Z)
+//             7,....,13 (Negative Z)
+//     Petal:  0,....,15
+//     Sensor: 1 2 3 4 
+// Argument codified as string
+std::map<std::string,int> SiStripGeomFTD::decodeCellID(const int & cellID) const
+{
+	UTIL::BitField64 cellDec(ILDCellID0::encoder_string);
+	cellDec.setValue((lcio::long64)cellID);
+
+	return decodeCellID(cellDec);
+}
+
+// FIXME: TO BE PUT IN GEAR ??
+// Returns the layer, module and sensor id. It returns in C-type indexs:
+//---- The notation used in this code:
+//     Layer:  0,...., 6 (Positive Z)
+//             7,....,13 (Negative Z)
+//     Petal:  0,....,15
+//     Sensor: 1 2 3 4 
+// Argument codified in the BitField64 class
+std::map<std::string,int> SiStripGeomFTD::decodeCellID(const UTIL::BitField64 & cellDec) const
+{
+	//FIXME: Quizas incluir un decodeCellID0 en gear??
+
+	// Checking we are using the canonical codification
+	//FIXME:: los strings son diferentes!! pensar como solucionar
+	/*if(cellDec.fielDescription() != ILDCellID0::encoder_string)
+	{
+		streamlog_out(ERROR) << "SiStripGeomFTD::decodeCellID0 "
+			<< " - the codification used is not the canonical.\n "
+			<< " Canonical codification string: " << cellDec.fieldDescription() 
+			<< " " << ILDCellID0::encoder_string  
+			<< std::endl;
+		exit(-1);
+	}*/
+
+	if(cellDec["subdet"] != ILDDetID::FTD)
+	{
+		streamlog_out(ERROR) << "SiStripGeomFTD::decodeCellID0 " 
+			<< " - subdetector is not FTD!!" 
+			<< std::endl;
+		exit(-1);
+	}
+
+	// Recall: codification in Mokka/G4:         
+        //     Layer: 1,...7; Side:  -1,+1; Petal: 1...16; Sensor: 1,2,3,4 
+	std::map<std::string,int> codmap;
+	codmap["layer"] = getLayerIDCTypeNo( cellDec["side"]*cellDec["layer"] );
+	codmap["module"]= cellDec["module"]-1;
+	codmap["sensor"]= cellDec["sensor"];
+
+	return codmap;
+}
 
 // FIXME: TO BE DEPRECATED!!
-std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerHit * & simHit)
+/*std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerHit * & simHit)
 {
 	// Encoded disks: 0,...,6  positives
 	//                7,...,13 negatives
@@ -265,7 +323,7 @@ std::map<std::string,short int> SiStripGeomFTD::cellIDDecProv(EVENT::SimTrackerH
         id["sensor"]= sensorid;
 	
 	return id;
-}
+}*/
 
 // Added
 double SiStripGeomFTD::getLadderOffsetX(const short int & layerID) const
@@ -673,22 +731,27 @@ bool SiStripGeomFTD::isPointInsideSensor (short int diskID, short int petalID,
 	// Boundary set +- epsilon
         if( (point.getX() > xmax+EPS*um) || (point.getX() < -EPS*um) )
 	{
-		streamlog_out(ERROR) << " position out of sensor! X [um] = "
+		streamlog_out(ERROR) << std::setprecision(3) 
+			<< " position out of sensor! X [um] = "
 			<< point.getX()/um << " (Maximum x: " << xmax/um << ")" << std::endl;
 		isIn = false;
 	}
 
 	if( (point.getY() >  ymax+EPS*um) || (point.getY() < ygap-EPS*um) )
 	{
-		streamlog_out(ERROR) << " position out of sensor! Y [mm] = "
+		//FIXME: HAY UN PUNTO EN simHitFTD.slcio que sale del detector: investigar
+	//	std::cout << "ymax=" << ymax << " EPS*um:" <<  EPS*um << " ygap=" << ygap << " -EPS*um=" << -EPS*um <<  " y=" << point.getY() << std::endl;
+		streamlog_out(ERROR) << std::setprecision(3)
+			<< " position out of sensor! Y [mm] = "
 			<< point.getY()/mm << " (Maximum y: " << ymax/mm 
-			<< ", Minimum y:" << ygap << ")" << std::endl;
+			<< ", Minimum y:" << ygap/mm << ")" << std::endl;
 		isIn = false;
 	}
 
 	if( (point.getZ() > zmax+EPS*um) || (point.getZ() < -EPS*um) ) 
 	{
-		streamlog_out(ERROR) << " position out of sensor! Z [mm] = "
+		streamlog_out(ERROR) << std::setprecision(3)
+			<< " position out of sensor! Z [mm] = "
 			<< point.getZ()/mm <<  " (Maximum z: " << zmax/mm << ")" << std::endl;
 		isIn = false;
 	}

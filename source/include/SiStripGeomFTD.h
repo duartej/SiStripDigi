@@ -15,6 +15,7 @@
 
 // Include LCIO stuff
 #include "EVENT/SimTrackerHit.h"
+#include "UTIL/BitField64.h"
 
 //class gear::FTDParameters;
 //class gear::FTDLayerLayout;
@@ -53,8 +54,10 @@ class SiStripGeomFTD: public SiStripGeom
 		//!Method initializing class - reads Gear parameters from XML file
 		virtual void initGearParams();
 
-		//!Method to extract codification ID, PROVISIONAL
-		std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit);
+		//!Method to extract codification ID, 
+		//std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit);
+		virtual std::map<std::string,int> decodeCellID(const UTIL::BitField64 & cellID) const;
+		virtual std::map<std::string,int> decodeCellID(const int & cellID) const;
 		
 		//!Stores the cellID0 and cellID1 of the LCIO object to the file
 		virtual void updateCanonicalCellID(const int & cellID, const int & stripType,

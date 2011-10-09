@@ -368,6 +368,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 		
 		// Set collection decoder
 		CellIDDecoder<SimTrackerHit> cellIDDec(colOfSimHits);
+		// Guarda la string encoder...??
 		
 		// Get number of SimTrackerHits in the collection
 		int nHits = colOfSimHits->getNumberOfElements();
@@ -412,21 +413,24 @@ void SiStripDigi::processEvent(LCEvent * event)
 			//             7,....,13 (Negative Z)
 			//     Petal:  0,....,15
 			//     Sensor: 1 2 3 4 
-			short int hitLayerID  = cellIDDec(simHit)["layer"]-1;
-			if( cellIDDec(simHit)["side"] < 0 )
-			{
-				hitLayerID += 7;
-			}
-			short int hitLadderID = cellIDDec(simHit)["module"]-1;
-			short int hitSensorID = cellIDDec(simHit)["sensor"];
+			std::map<std::string,int> cellIDmap = _geometry->decodeCellID(cellIDDec(simHit)); //decodeCellID0
+			const int hitLayerID  = cellIDmap["layer"];
+			const int hitLadderID = cellIDmap["module"];
+			const int hitSensorID = cellIDmap["sensor"];
 			//FIXME: The pixel disks digitization must be done
 			//       by some other package...
 			if( abs(_geometry->getLayerRealID(hitLayerID)) < 3 )
 			{
 				continue;
 			}
-			
-			int  hitCellID   = _geometry->encodeCellID(hitLayerID, hitLadderID, hitSensorID);
+/*std::cout << "EN___DIGI___" << std::endl;		
+std::cout<< "layer:" << cellIDmap["layer"] <<
+		" subdetector:" << cellIDmap["subdet"] <<
+		" side: "  << cellIDmap["side"] <<
+		" module: " << cellIDmap["module"]<<
+		" sensor: " << cellIDmap["sensor"] << std::endl;*/
+			int hitCellID =  cellIDDec(simHit).lowWord();
+			//int hitCellID =  _geometry->encodeCellID(hitLayerID, hitLadderID, hitSensorID);
 
 			// MC information
 			MCParticle * mcPart = simHit->getMCParticle();
@@ -481,7 +485,6 @@ void SiStripDigi::processEvent(LCEvent * event)
 			simDigiHit = 0;
 			
 		} // For - process hits
-		
 		
 		// Add electronics effects
 		if(_electronicEffects)
@@ -1035,7 +1038,6 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & h
 		}
 
 #ifdef ROOT_OUTPUT_LAND
-		
 		// Update info
 		_rootDepEDigi += eLoss;
 #endif
@@ -1094,7 +1096,12 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 	for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
 	{
 	   // Find corresponding layerID
-	   _geometry->decodeCellID(layerID, ladderID, sensorID, iterSMap->first);
+           std::map<std::string,int> bfMap = _geometry->decodeCellID(iterSMap->first);
+	   layerID = bfMap["layer"];
+	   ladderID= bfMap["module"];
+	   sensorID= bfMap["sensor"];
+	   std::cout << " ----> Layer: " << layerID << " petal:" << ladderID << " sensorID:" << sensorID << std::endl;
+	   //_geometry->decodeCellID(layerID, ladderID, sensorID, iterSMap->first);
 	   
 	   // Define strip map with recalculated signals
 	   StripChargeMap * stripMap = new StripChargeMap[2];
@@ -1401,10 +1408,11 @@ double SiStripDigi::getHoleDriftTime(double pos)
 //
 double SiStripDigi::getEField(double pos)
 {
-	// Si wafer thickness in cm
-	if (pos<0 || pos>_sensorThick) 
+	// Si wafer thickness in cm (Added the rounding error)
+	if(pos<0 || pos > _sensorThick+ROUNDEPS*um) 
 	{
-		streamlog_out(ERROR) << "Electric field at required position: " << pos
+		streamlog_out(ERROR) << std::setprecision(3) 
+			<< "Electric field at required position[um]: " << pos/um
 			<< " not defined!" << std::endl;
 		exit(-1);
 	}
@@ -1680,7 +1688,11 @@ void SiStripDigi::printStripsInfo( std::string info, const SensorStripMap & sens
 		for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
 
 			cellID  = iterSMap->first;
-			_geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
+			std::map<std::string,int> bfMap = _geometry->decodeCellID(cellID);
+			layerID = bfMap["layer"];
+			ladderID= bfMap["module"];
+			sensorID= bfMap["sensor"];
+			//_geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
 			layerID = _geometry->getLayerRealID(layerID);
 
 			streamlog_out(MESSAGE1) << std::endl

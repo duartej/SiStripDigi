@@ -472,7 +472,11 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 		// Save layer ID , ...
 		int cellID = iterSMap->first;
 		
-		_geometry->decodeCellID(layerID, ladderID, sensorID, cellID); ---> FIXME
+		std::map<std::string,int> bfmap = _geometry->decodeCellID(cellID);
+		layerID = bfmap["layer"];
+		ladderID= bfmap["module"];
+		sensorID= bfmap["sensor"];
+		//_geometry->decodeCellID(layerID, ladderID, sensorID, cellID);
 		
 		//
 		// Clusters in Z

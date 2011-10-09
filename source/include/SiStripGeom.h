@@ -65,7 +65,7 @@ class SiStripGeom
 		virtual void initGearParams() = 0;
 
 		//!Pure virtual method, PROVISIONAL
-		virtual std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit) = 0;
+		//virtual std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit) = 0;
 
 		// MAGNETIC FIELD
 		//!Get magnetic field - x
@@ -83,9 +83,11 @@ class SiStripGeom
 		
 		// ENCODING
 		//!Encode cellID
-		virtual int encodeCellID(short int layerID, short int ladderID, short int sensorID) const;
-		//!Decode cellID
-		virtual void decodeCellID(short int & layerID, short int & ladderID, short int & sensorID, int cellID) const;
+		//virtual int encodeCellID(short int layerID, short int ladderID, short int sensorID) const;
+		//!Decode cellID1
+		//virtual void decodeCellID(short int & layerID, short int & ladderID, short int & sensorID, int cellID) const;
+		virtual std::map<std::string,int> decodeCellID(const UTIL::BitField64 & cellDec) const = 0;
+		virtual std::map<std::string,int> decodeCellID(const int & cellDec) const = 0;
 		
 		//!Encode stripID
 		virtual int encodeStripID(StripType type, int stripID) const;

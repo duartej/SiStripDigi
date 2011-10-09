@@ -44,20 +44,20 @@ namespace sistrip
 //
 // Encode cell ID
 //
-int SiStripGeom::encodeCellID(short int layerID, short int ladderID, short int sensorID) const
+/*int SiStripGeom::encodeCellID(short int layerID, short int ladderID, short int sensorID) const
 {
 	return layerID*LAYERCOD + ladderID*LADDERCOD + sensorID*SENSORCOD;
-}
+}*/
 
 //
 // Decode cell ID
 //
-void SiStripGeom::decodeCellID(short int & layerID, short int & ladderID, short int & sensorID, int cellID) const
+/*void SiStripGeom::decodeCellID(short int & layerID, short int & ladderID, short int & sensorID, int cellID) const
 {
 	layerID  =  cellID / LAYERCOD;
 	ladderID = (cellID - layerID*LAYERCOD) / LADDERCOD;
 	sensorID = (cellID - layerID*LAYERCOD - ladderID*LADDERCOD) / SENSORCOD;
-}
+}*/
 
 //
 // Encode strip ID
@@ -124,7 +124,7 @@ int SiStripGeom::getLayerRealID(short int layerID) const
 {
 	//TODO: Posible mejora del algoritmo: try-catch
 	//      capturando un range exception --> mensaje error
-	if (_layerRealID.size()>(unsigned short int)layerID) 
+	if(_layerRealID.size()>(unsigned short int)layerID) 
 	{
 		return _layerRealID[layerID];
 	}
