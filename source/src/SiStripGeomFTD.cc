@@ -109,7 +109,7 @@ void SiStripGeomFTD::initGearParams()
 	_ladderZOffsetSign0.reserve(2*_numberOfLayers);
 	_numberOfLadders.reserve(2*_numberOfLayers);
 	_ladderLength.reserve(2*_numberOfLayers);
-	for(int i = 0; i < _numberOfLayers; i++)
+	for(int i = 0; i < _numberOfLayers; ++i)
 	{
 		_layerType.push_back(_ftdLayer->getSensorType(i));
 		_layerZ.push_back(_ftdLayer->getZposition(i)*mm);
@@ -132,7 +132,7 @@ void SiStripGeomFTD::initGearParams()
 	}
 	// Negative layers
 	const unsigned int ridsize = _layerRealID.size();
-	for(unsigned int i=0; i < ridsize; i++)
+	for(unsigned int i=0; i < ridsize; ++i)
 	{
 		_layerRealID.push_back(-1*_layerRealID.at(i));
 	}
@@ -165,7 +165,7 @@ void SiStripGeomFTD::initGearParams()
 	_sensorNStripsInFront.reserve(2*_numberOfLayers);
 	_sensorPitchInRear     = std::vector<double>(2*_numberOfLayers,50.0*um); // FIXME
 	_sensorNStripsInRear.reserve(2*_numberOfLayers);
-	for(int i = 0; i < _numberOfLayers; i++)
+	for(int i = 0; i < _numberOfLayers; ++i)
 	{
 		// 50 um in the middle
 		const double xmaxsensorup = _ftdLayer->getSensitiveLengthMax(i)*mm;
@@ -183,7 +183,7 @@ void SiStripGeomFTD::initGearParams()
 
 	/*_sensorPitchInRear     = std::vector<double>(2*_numberOfLayers,50.0*um); // FIXME
 	_sensorNStripsInRear.reserve(2*_numberOfLayers);
-	for(int i = 0; i < _numberOfLayers; i++)
+	for(int i = 0; i < _numberOfLayers; ++i)
 	{
 		const double widthsensor = _ftdLayer->getSensitiveWidth(i)*mm;
 		_sensorNStripsInRear.push_back( (int)(widthsensor/_sensorPitchInRear[i])+1 );
@@ -502,8 +502,8 @@ CLHEP::HepMatrix SiStripGeomFTD::transformMatxToLocal(short int layerID, short i
 
 	      CLHEP::HepRotation rotMatrixHelpT(rotMatrixHelp.inverse());
 
-	      for (int i=0; i<3; i++) {
-	         for (int j=0; j<3; j++) {
+	      for (int i=0; i<3; ++i) {
+	         for (int j=0; j<3; ++j) {
 	            rotMatrix[i][j]  = rotMatrixHelp[i][j];
 	            rotMatrixT[i][j] = rotMatrixHelpT[i][j];
 	         }
@@ -675,8 +675,8 @@ CLHEP::HepMatrix SiStripGeomFTD::transformMatxToGlobal(short int layerID, short 
 
       CLHEP::HepRotation rotMatrixHelpT(rotMatrixHelp.inverse());
 
-      for (int i=0; i<3; i++) {
-         for (int j=0; j<3; j++) {
+      for (int i=0; i<3; ++i) {
+         for (int j=0; j<3; ++j) {
             rotMatrix[i][j]  = rotMatrixHelp[i][j];
             rotMatrixT[i][j] = rotMatrixHelpT[i][j];
          }

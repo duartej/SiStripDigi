@@ -306,7 +306,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 	// Go through all collection names and save the one that is defined as an input 
 	// collection
 	for(ConstStringVec::const_iterator colName = strVec->begin(); 
-			colName != strVec->end(); colName++) 
+			colName != strVec->end(); ++colName) 
 	{
 		if (_inColName == (*colName)) 
 		{
@@ -378,7 +378,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 		
 
 		// Process hits
-		for (int i=0; i<nHits; i++) 
+		for (int i=0; i<nHits; ++i) 
 		{
 			//
 			// Copy the content of current simhit to a DigiHit
@@ -507,15 +507,15 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 
 #ifdef ROOT_OUTPUT_LAND
 /*		for(SensorStripMap::iterator itSM = sensorMap.begin(); itSM != sensorMap.end();
-				itSM++)
+				++itSM)
 		{
 			const int cellID = itSM->first;
 			std::cout << "-|| cellID: " << cellID << std::endl;
 			for(std::vector<StripType>::iterator stT = stripTypesvect.begin();
-					stT != stripTypesvect.end(); stT++)
+					stT != stripTypesvect.end(); ++stT)
 			{
 				for(StripChargeMap::iterator itSC = itSM->second[*stT].begin();
-						itSC != itSM->second[*stT].end(); itSC++)
+						itSC != itSM->second[*stT].end(); ++itSC)
 				{
 					std::cout << " |-|- stripID: " <<  itSC->first << std::endl;
 					std::cout << "   |--- Total integrated charge: " <<  itSC->second->getCharge()/fC 
@@ -525,7 +525,7 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 					std::cout << "   |-|- Simulated hits " <<  std::endl;
 					SimTrackerHitMap hm = itSC->second->getSimHitMap();
 					for(SimTrackerHitMap::iterator it = hm.begin(); it != hm.end();
-							it++)
+							++it)
 					{
 						std::cout << "     |-- Position Global[mm]  : " 
 							<< "(" << (it->first->getPosition()[0]*mm)/mm 
@@ -581,16 +581,16 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 		StripChargeMap::iterator iterChMap;
 		
 	
-		for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+		for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); ++iterSMap) 
 		{
 	             int cellID = iterSMap->first;
 			
 		     for(std::vector<StripType>::iterator stripTypeIt = stripTypesvect.begin();
-				     stripTypeIt != stripTypesvect.end(); stripTypeIt++)
+				     stripTypeIt != stripTypesvect.end(); ++stripTypeIt)
 		     {
 			 StripType stripType = *stripTypeIt;
 		         for(iterChMap=iterSMap->second[stripType].begin();
-					 iterChMap!=iterSMap->second[stripType].end(); iterChMap++)
+					 iterChMap!=iterSMap->second[stripType].end(); ++iterChMap)
 			 {
 			     int       stripID   = iterChMap->first;
 			     
@@ -617,7 +617,7 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 				      float weightSum = iterChMap->second->getSimHitWeightSum();
 				      
 				      for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin();
-						      iterSHM!=simHitMap.end(); iterSHM++) 
+						      iterSHM!=simHitMap.end(); ++iterSHM) 
 				      {
 					  // Create LC relation
 					      LCRelationImpl * relation = new LCRelationImpl;
@@ -796,7 +796,7 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 	}
 	
 	// Hole clusters
-	for( iterVec=hClusterVec.begin(); iterVec!=hClusterVec.end(); iterVec++ ) 
+	for( iterVec=hClusterVec.begin(); iterVec!=hClusterVec.end(); ++iterVec ) 
 	{
 		DigiCluster * cluster = (*iterVec);
 
@@ -873,7 +873,7 @@ _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::
 		
 //std::cout << "---- Entrando loop del calculo de senyal por strip " << std::endl;
 		//  Calculate signal at each strip and save
-		for(int i=iMinStrip; i<=iMaxStrip; i++) 
+		for(int i=iMinStrip; i<=iMaxStrip; ++i) 
 		{
 			// Charge collected by a strip i
 			double charge = 0.;
@@ -1024,7 +1024,7 @@ void SiStripDigi::calcClusters(const SimTrackerDigiHit * hit, DigiClusterVec & h
 	}
 	
 	// Create elec-clusters and hole-clusters
-	for(int i = 0; i<nClusters; i++) 
+	for(int i = 0; i<nClusters; ++i) 
 	{
 		// Landau fluctuated deposited energy
 		double eLoss = 0.;
@@ -1096,7 +1096,7 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 	stvec.push_back(STRIPREAR);
 	
         // Go through all sensors
-	for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+	for(iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); ++iterSMap) 
 	{
 	   // Find corresponding layerID
            std::map<std::string,int> bfMap = _geometry->decodeCellID(iterSMap->first);
@@ -1109,12 +1109,12 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 	   StripChargeMap * stripMap = new StripChargeMap[2];
 	   
 	   // For all the strips types
-	   for(std::vector<StripType>::iterator itT = stvec.begin(); itT != stvec.end(); itT++)
+	   for(std::vector<StripType>::iterator itT = stvec.begin(); itT != stvec.end(); ++itT)
 	   {
 		const StripType STRIP = *itT;
 		// Read map of strips in R-Phi and save new results to recalculated strip map
 		for(iterChMap=(iterSMap->second[STRIP]).begin(); 
-				iterChMap!=(iterSMap->second[STRIP]).end(); iterChMap++) 
+				iterChMap!=(iterSMap->second[STRIP]).end(); ++iterChMap) 
 		{
 			const int iStrip = iterChMap->first;
 			int iStripLeft   = iStrip - 1;
@@ -1156,7 +1156,7 @@ void SiStripDigi::calcCrossTalk(SensorStripMap & sensorMap)
 			
 			// Reasigning weights to hits
 			for(SimTrackerHitMap::const_iterator iterSHM=signal->getSimHitMap().begin(); 
-					   iterSHM!=signal->getSimHitMap().end(); iterSHM++) 
+					   iterSHM!=signal->getSimHitMap().end(); ++iterSHM) 
 			{
 			      simHitMapLeft[iterSHM->first]  = iterSHM->second * Kf;
 			      simHitMapCentr[iterSHM->first] = iterSHM->second * chargeCentr/chargeTotal;
@@ -1241,14 +1241,14 @@ void SiStripDigi::genNoise(SensorStripMap & sensorMap)
 	stvec.push_back(STRIPREAR);
 	
 	for(SensorStripMap::iterator iterSMap=sensorMap.begin(); 
-			      iterSMap!=sensorMap.end(); iterSMap++) 
+			      iterSMap!=sensorMap.end(); ++iterSMap) 
 	{
 	    for(std::vector<StripType>::iterator itType = stvec.begin(); 
-			    itType != stvec.end(); itType++)
+			    itType != stvec.end(); ++itType)
 	    {
 		for(StripChargeMap::iterator iterChMap=iterSMap->second[(*itType)].begin(); 
 				iterChMap!=iterSMap->second[(*itType)].end(); 
-				iterChMap++) 
+				++iterChMap) 
 		{
 		    const double elNoise = _genGauss->fire();
 		    
@@ -1592,7 +1592,7 @@ void SiStripDigi::printClustersInfo( std::string info, const DigiClusterVec & cl
    DigiClusterVec::const_iterator iterClusters;
 
    streamlog_out(MESSAGE1) << "   " << info << ": " << clusterVec.size() << " clusters" <<std::endl;
-   for ( iterClusters = clusterVec.begin(); iterClusters != clusterVec.end(); iterClusters++ ) {
+   for ( iterClusters = clusterVec.begin(); iterClusters != clusterVec.end(); ++iterClusters ) {
       printClusterInfo( **iterClusters);
    }
 }
@@ -1687,7 +1687,7 @@ void SiStripDigi::printStripsInfo( std::string info, const SensorStripMap & sens
 		streamlog_out(MESSAGE1) << "  Digi results - " << info
 		                        << ":"                 << std::endl;
 
-		for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) {
+		for (iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); ++iterSMap) {
 
 			cellID  = iterSMap->first;
 			std::map<std::string,int> bfMap = _geometry->decodeCellID(cellID);
@@ -1704,7 +1704,7 @@ void SiStripDigi::printStripsInfo( std::string info, const SensorStripMap & sens
 			                        << std::endl;
 
 			// Strips in R-Phi
-			for (iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) {
+			for (iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); ++iterChMap) {
 
 				stripID = iterChMap->first;
 			   streamlog_out(MESSAGE1) << "    Strip number in R-Phi: "    << stripID
@@ -1717,7 +1717,7 @@ void SiStripDigi::printStripsInfo( std::string info, const SensorStripMap & sens
 			}
 
 			// Strips in Z
-         for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) {
+         for (iterChMap=iterSMap->second[STRIPZ].begin(); iterChMap!=iterSMap->second[STRIPZ].end(); ++iterChMap) {
 
             stripID = iterChMap->first;
             streamlog_out(MESSAGE1) << "    Strip number in Z: "    << stripID

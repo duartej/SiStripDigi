@@ -30,7 +30,7 @@ void Signal::updateSimHitMap(EVENT::SimTrackerHit * simHit, float weight)
 
 void Signal::updateSimHitMap(SimTrackerHitMap simHitMap)
 {
-	for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) 
+	for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); ++iterSHM) 
 	{
 		EVENT::SimTrackerHit * simHit = iterSHM->first;
 		float                  weight = iterSHM->second;
@@ -47,7 +47,7 @@ float Signal::getSimHitWeightSum()
 {
    float weightSum = 0;
 
-   for (SimTrackerHitMap::const_iterator iterSHM=_simHitMap.begin(); iterSHM!=_simHitMap.end(); iterSHM++) {
+   for (SimTrackerHitMap::const_iterator iterSHM=_simHitMap.begin(); iterSHM!=_simHitMap.end(); ++iterSHM) {
 
       weightSum += iterSHM->second;
    }

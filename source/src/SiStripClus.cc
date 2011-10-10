@@ -162,7 +162,7 @@ void SiStripClus::init()
 	// Set variables in appropriate physical units
    _CMSnoise   *= e;
 
-   for (unsigned int i=0; i<_resSVDFirstInRPhi.size(); i++) {
+   for (unsigned int i=0; i<_resSVDFirstInRPhi.size(); ++i) {
 
       _resSVDFirstInRPhi[i]   *= um;
       _resSVDOtherInRPhi[i]   *= um;
@@ -254,7 +254,7 @@ void SiStripClus::processEvent(LCEvent * event)
 	
 	// Go through all collection names
 	for(ConstStringVec::const_iterator colName = strVec->begin(); 
-			colName != strVec->end(); colName++) 
+			colName != strVec->end(); ++colName) 
 	{
 		// Tracker pulses
 		if(_inColName == (*colName)) 
@@ -345,7 +345,7 @@ void SiStripClus::processEvent(LCEvent * event)
 		int nPulses = colOfTrkPulses->getNumberOfElements();
 		
 		// Process pulses
-		for(int i=0; i<nPulses; i++)
+		for(int i=0; i<nPulses; ++i)
 		{
 			// Copy the content of collection TrackerPulse to a pulse
 			pulse = dynamic_cast<TrackerPulseImpl*>( 
@@ -355,18 +355,18 @@ void SiStripClus::processEvent(LCEvent * event)
 			updateMap(pulse, sensorMap);
 		}
 		
-/*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+/*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); ++iterSMap) 
 {
 std::cout << "----- cellID:" << iterSMap->first << std::endl;
 std::cout << "       - Type: " << STRIPFRONT << std::endl;
 	// Strips in FRONT
-	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); iterChMap!=iterSMap->second[STRIPFRONT].end(); iterChMap++)
+	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); iterChMap!=iterSMap->second[STRIPFRONT].end(); ++iterChMap)
 	{
 std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
 	}
         // Strips in REAR
 std::cout << "       - Type: " << STRIPREAR << std::endl;
-	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPREAR].begin(); iterChMap!=iterSMap->second[STRIPREAR].end(); iterChMap++)
+	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPREAR].begin(); iterChMap!=iterSMap->second[STRIPREAR].end(); ++iterChMap)
 	{
 std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
 	}
@@ -447,7 +447,12 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 	ClsVec clsVec;
 	
 	// Cluster vectors - in R-Phi, in Z
-	ClsVec clsVecInRPhi, clsVecInZ;
+	std::pair<ClsVec,ClsVec> clsvectFrontRear; //clsVecInRPhi, clsVecInZ;
+
+	//
+	// Search complete sensor map - find seeds & their neghbouring strips
+	for(SensorStripMap::iterator iterSMap = sensorMap.begin(); iterSMap!=sensorMap.end();
+			++iterSMap)
 	
 	// Cluster vector iterators
 	ClsVec::iterator iterClsVec, iterClsVec2;
@@ -465,7 +470,7 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 	
 	//
 	// Search complete sensor map - find seeds & their neighbouring strips
-	for(SensorStripMap::iterator iterSMap=sensorMap.begin(); 
+/*	for(SensorStripMap::iterator iterSMap=sensorMap.begin(); 
 			iterSMap!=sensorMap.end(); iterSMap++) 
 	{
 		// Save layer ID , ...
@@ -1070,7 +1075,7 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
       clsVecInRPhi.clear();
       clsVecInZ.clear();
 
-   } // For sensor map
+   } // For sensor map*/
 
   return clsVec;
 
