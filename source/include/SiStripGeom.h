@@ -82,6 +82,9 @@ class SiStripGeom
 		virtual inline std::string getGearType() { return _gearType; }
 		
 		// ENCODING
+		//! Returns the input cellID0 where the field sensor is put to 0
+		virtual int cellID0withSensor0(const int & cellID0) const =0 ;
+
 		//!Encode cellID
 		//virtual int encodeCellID(short int layerID, short int ladderID, short int sensorID) const;
 		//!Decode cellID1

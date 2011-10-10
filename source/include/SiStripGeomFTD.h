@@ -54,6 +54,9 @@ class SiStripGeomFTD: public SiStripGeom
 		//!Method initializing class - reads Gear parameters from XML file
 		virtual void initGearParams();
 
+		//! Returns the input cellID0 where the field sensor is put to 0
+		virtual int cellID0withSensor0(const int & cellID0) const;
+
 		//!Method to extract codification ID, 
 		//std::map<std::string,short int> cellIDDecProv(EVENT::SimTrackerHit * & simHit);
 		virtual std::map<std::string,int> decodeCellID(const UTIL::BitField64 & cellID) const;

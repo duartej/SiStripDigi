@@ -353,10 +353,11 @@ void SiStripClus::processEvent(LCEvent * event)
 			
 			// Update the sensor strip map with the pulse
 			updateMap(pulse, sensorMap);
-		} 
-for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
+		}
+
+/*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
 {
-/*std::cout << "----- cellID:" << iterSMap->first << std::endl;
+std::cout << "----- cellID:" << iterSMap->first << std::endl;
 std::cout << "       - Type: " << STRIPFRONT << std::endl;
 	// Strips in FRONT
 	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); iterChMap!=iterSMap->second[STRIPFRONT].end(); iterChMap++)
@@ -1258,14 +1259,23 @@ void SiStripClus::calcResolution(short int layerID, double hitTheta, float * cov
 
 //
 // Method to save the signal 
+// 
+// FTD stuff --> Need to change the sensorMap in order to store in the 
+//               same StripCharge map the two opposites sensors of the same disk-petal
+//               as in FTD the Hits are built using two Single side sensors of the same
+//               disk-petal
 //
 // FIXME: Returns the SensorStripMap
 void SiStripClus::updateMap(TrackerPulseImpl * pulse,  
 		SensorStripMap & sensorMap )
 {
 	// CellID0 encodes layerID, ladderID and sensorID; 
-	// cellID1 encodes strip (in Z or R-Phi)
+	// cellID1 encodes strip 
 	int       cellID0 = pulse->getCellID0();
+	// the new cellID0 is as the old one but extracted the sensor
+	// information (cellID["sensor"] = 0
+	cellID0 = _geometry->cellID0withSensor0(cellID0);
+
 	int       cellID1 = pulse->getCellID1();
 	
 	double    charge  = pulse->getCharge()*fC;
@@ -1275,7 +1285,6 @@ void SiStripClus::updateMap(TrackerPulseImpl * pulse,
 	
 	const StripType stripType = tpIdpair.first;
 	const int stripID = tpIdpair.second;
-	if(charge < 0.0) std::cout << "HOLA-----> " << stripID << " charge:" << charge <<std::endl;
 	
 	// Controlling some errors
 	if( stripType != STRIPFRONT && stripType != STRIPREAR )
