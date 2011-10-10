@@ -128,10 +128,10 @@ SiStripClus::SiStripClus() : Processor("SiStripClus")
                                _SNtotal,
                                float(8) );
 
-   registerProcessorParameter( "TanOfAvgELorentzShift",
-                               "Tangent of electrons' average Lorentz shift (0.20 for 273 K, 0.175 for 300 K)",
-                               _TanOfAvgELorentzShift,
-                               float(0.175) );
+//   registerProcessorParameter( "TanOfAvgELorentzShift",
+//                             "Tangent of electrons' average Lorentz shift (0.20 for 273 K, 0.175 for 300 K)",
+//                               _TanOfAvgELorentzShift,
+//                               float(0.175) );
 
    registerProcessorParameter( "TanOfAvgHLorentzShift",
                                "Tangent of holes' average Lorentz shift (0.05 for 273 K, 0.039 for 300 K)",
@@ -446,27 +446,412 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 {
 	ClsVec clsVec;
 	
-	// Cluster vectors - in R-Phi, in Z
-	std::pair<ClsVec,ClsVec> clsvectFrontRear; //clsVecInRPhi, clsVecInZ;
-
+	// Cluster vectors - 
+	std::map<int,std::map<StripType,ClsVec> > clsvectFrontRear; 
+	
+	std::vector<StripType> stv;
+	stv.push_back(STRIPFRONT);
+	stv.push_back(STRIPREAR);
+	// As the sensorID was lost (see SiStripClus::updateMap method)
+	// assigning it
+	std::map<StripType,int> stSensorIDmap;
+	stSensorIDmap[STRIPFRONT] = 1;
+	stSensorIDmap[STRIPREAR]  = 3;
+	
+	// Bunch of strips forming cluster
+	StripChargeMap clsStrips;
+	
 	//
 	// Search complete sensor map - find seeds & their neghbouring strips
 	for(SensorStripMap::iterator iterSMap = sensorMap.begin(); iterSMap!=sensorMap.end();
 			++iterSMap)
+	{
+             // Storing the two types of clusters
+	     for(std::vector<StripType>::iterator itST = stv.begin(); itST!= stv.end();
+			     ++itST)
+	     {
+		   StripType STRIPTYPE = *itST;
+		   for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPTYPE].begin(); 
+				     iterChMap!=iterSMap->second[STRIPTYPE].end(); iterChMap++) 
+		   {
+			// Save layer ID , ...
+			int cellID = iterSMap->first;
+			std::map<std::string,int> bfmap = _geometry->decodeCellID(cellID);
+			const int layerID = bfmap["layer"];
+			const int ladderID= bfmap["module"];
+			const int sensorID= stSensorIDmap[STRIPTYPE];
+			
+			// Begin algorithm
+			// Zero: Save new candidate for seed strip + MC true info
+			const int seedStrip  = iterChMap->first;
+			const double seedCharge = iterChMap->second->getCharge();
+			
+			const SimTrackerHitMap & seedSimHitMap=iterChMap->second->getSimHitMap();
+			
+			if( seedCharge < (_SNseed*_CMSnoise) )
+			{
+				continue;
+			}
+			
+			// First: New cluster and its seed strip has been found 
+			clsStrips[seedStrip] = new Signal(seedCharge, 0.);
+			clsStrips[seedStrip]->updateSimHitMap(seedSimHitMap);
+			
+			// Set this charge as zero to avoid double counting
+			iterChMap->second->setCharge(0.);
+			
+			// Map ordered from lower to higher
+			// Continue searching - find left and right neighbours
+			// Taking account also the floating strips case...
+			StripChargeMap::iterator seedIt=iterSMap->second[STRIPTYPE].find(seedStrip); 
+			// Second: search for left neighbours
+			//-- Left neighbours
+std::cout <<" ************* LEFT "  << " SEED ID: " << seedIt->first <<std::endl;
+			StripChargeMap::reverse_iterator lschMap(seedIt);
+			clsStrips = storeHitsAdjacents<StripChargeMap::reverse_iterator>(
+					clsStrips, lschMap, iterSMap->second[STRIPTYPE].rend(),
+					iterSMap->second[STRIPTYPE]);
+
+			// Third: search for rigth neighbours
+			//-- Right neighbours
+std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
+			StripChargeMap::iterator rschMap(++seedIt);
+			clsStrips = storeHitsAdjacents<StripChargeMap::iterator>(clsStrips, 
+					rschMap, iterSMap->second[STRIPTYPE].end(),
+					iterSMap->second[STRIPTYPE]);
+			
+			// Fourth: Calculate mean position of a new cluster
+			SimTrackerHitMap clsSimHitMap;
+			
+			// Cluster: position, charge & size
+			//int clsSizeZ   = clsStrips.size();
+			//double    clsPosZ    = 0.;*/
+
+			double    clsCharge  = 0.0;
+			
+			double xLeftSignal   = 0.0;
+			double qLeftSignal   = 0.0;
+			
+			double xRightSignal  = 0.0;
+			double qRightSignal  = 0.0;
+			
+			double qIntermSignal = 0.0;
+			
+			for(StripChargeMap::iterator iterChMap2=clsStrips.begin(); 
+					iterChMap2!=clsStrips.end(); iterChMap2++) 
+			{
+			    // Current strip ID, posZ & charge
+			    const int stripID        = iterChMap2->first;
+			    const double stripPosYatz0= _geometry->getStripPosY(layerID, 
+					    sensorID,stripID,0.0);
+//			    const CLHEP::Hep3Vector stripVector = 
+//				    _geometry->getStripUnitVector(layerID,sensorID,stripID);
+			    const double stripCharge = iterChMap2->second->getCharge();
+			    
+			    // Update info about MC particles which contributed
+			    const SimTrackerHitMap & simHitMap = 
+				    iterChMap2->second->getSimHitMap();
+			    
+			    if(simHitMap.size() != 0) 
+			    {
+			        for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin();
+						iterSHM!=simHitMap.end(); ++iterSHM) 
+				{
+				     EVENT::SimTrackerHit * simHit = 
+					     dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
+				     float weight = iterSHM->second;
+				     if(clsSimHitMap.find(simHit)!=clsSimHitMap.end()) 
+				     {
+					     clsSimHitMap[simHit] += weight;
+				     }
+				     else
+				     {
+					     clsSimHitMap[simHit]  = weight;						
+				     }
+				}
+			    }
+			    
+			    // Get last iterator
+			    
+			    // Get leftmost signal
+			    if(iterChMap2 == clsStrips.begin()) 
+			    {
+				    xLeftSignal = stripPosYatz0;
+				    qLeftSignal = stripCharge;
+			    }
+			    
+			    // Get rightmost signal
+			    else if(iterChMap2 == --(clsStrips.end())) 
+			    {	
+				    xRightSignal = stripPosYatz0;
+				    qRightSignal = stripCharge;
+			    }
+			    // Get intermediate signal
+			    else
+			    {
+				    qIntermSignal += stripCharge;
+			    }
+			    
+			    // Update total charge
+			    clsCharge += stripCharge;
+			    
+			}
+			
+			// Number of strips being part of cluster
+			int clsSize   = clsStrips.size();
+			// Get average intermediate signal
+			if (clsSize > 2) 
+			{
+				qIntermSignal /= (clsSize - 2.0);
+			}
+			else
+			{
+				qIntermSignal  = 0.;
+			}
+			
+			// Building the cluster
+			double geomPitchAtz0 = _geometry->getSensorPitch(layerID,sensorID,0.0);
+			double readOutPitch = 0.;
+			if(_floatStripsZ)  // FIXME---> CAMBIAR POR mapa _floatStrips[type]
+			{
+				readOutPitch = 2.0*geomPitchAtz0;
+			}
+			else
+			{
+				readOutPitch = geomPitchAtz0;
+			}
+			
+			double clsPosYatz0 = 0.0;
+			// Analog head-tail algorithm
+			// qIntermSignal >= 1/eps*qRighSignal || 1/eps*qLeftSignal 
+			//    --> if not don't use head-tail (delta electron ...) - use 
+			//        epsilon ~ 1.5
+			if( (clsSize>2) && (qLeftSignal<1.5*qIntermSignal) 
+					&& (qRightSignal<1.5*qIntermSignal) ) 
+			{
+				clsPosYatz0 = (xRightSignal + xLeftSignal)/2. 
+					+ (qRightSignal - qLeftSignal)/2./qIntermSignal * readOutPitch;
+			}
+			else  // COG algorithm
+			{
+				clsPosYatz0 = (xRightSignal*qRightSignal 
+						+ xLeftSignal*qLeftSignal)/(qRightSignal + qLeftSignal);
+			}
 	
+			
+			//
+			// Fifth: Correct mean position to Lorentz shift 
+			// As theta is Pi/2.0 --> this correction is 0: FIXME-> TO BE REMOVED
+			clsPosYatz0 += _TanOfAvgHLorentzShift 
+				* _geometry->getSensorThick(layerID)/2.
+				* cos(_geometry->getLadderTheta(layerID));
+			
+			//
+			// Sixth: Save information about new cluster
+			if(clsCharge >= (_SNtotal*_CMSnoise)) 
+			{
+			      StripCluster * pCluster = new StripCluster( layerID, 
+			           ladderID, sensorID, 
+				   Hep3Vector(_geometry->getSensorThick(layerID)/2.,
+					   clsPosYatz0, 0.0),
+				   Hep3Vector(_geometry->getSensorThick(layerID)/2., 0., 0.), 
+				   clsCharge, clsSize );
+			      pCluster->updateSimHitMap(clsSimHitMap);
+			      
+			      clsvectFrontRear[cellID][STRIPTYPE].push_back(pCluster);
+			}
+			
+			// Release memory
+			for(StripChargeMap::iterator iterChMap2=clsStrips.begin(); 
+					iterChMap2!=clsStrips.end(); iterChMap2++) 
+			{
+				delete iterChMap2->second;
+			}
+			
+			// Clear content
+			clsStrips.clear();
+			
+		   } // For clusters type
+	     }  
+		
+
+	     // Stores the hit (using the STRIPFRONT as init)
+	     for(std::map<int,std::map<StripType,ClsVec> >::iterator it = clsvectFrontRear.begin();
+			     it != clsvectFrontRear.end(); ++it)
+	     {
+		     for(ClsVec::iterator itV = it->second[STRIPFRONT].begin();
+					itV != itSV->second[STRIPFRONT].end(); ++itV)
+		     {
+		     }
+	     }
+
+
+                  Hep3Vector position( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosY()     , pClusterZ->getPosZ());
+                  Hep3Vector posSigma( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosSigmaY(), pClusterZ->getPosSigmaZ());
+
+                  double     totalCharge = (pClusterRPhi->getCharge() + pClusterZ->getCharge() )/2.;
+
+                  StripCluster * pCluster3D = new StripCluster( layerID, ladderID, sensorID, position, posSigma, totalCharge, 0);
+
+                  SimTrackerHitMap cls3DSimHitMap = clsRPhiSimHitMap;
+
+                  // Update MC true info for 3D
+                  if (cls3DSimHitMap.size() != 0) {
+
+                     for (iterSHM=clsZSimHitMap.begin(); iterSHM!=clsZSimHitMap.end(); iterSHM++) {
+
+                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
+                        float                  weight = iterSHM->second;
+
+                        if (cls3DSimHitMap.find(simHit)!=cls3DSimHitMap.end()) cls3DSimHitMap[simHit] += weight;
+                        else                                                   cls3DSimHitMap[simHit]  = weight;
+                     }
+
+                     pCluster3D->updateSimHitMap(cls3DSimHitMap);
+                  }
+
+                  //
+                  // if defined ROOT-OUTPUT, save info
+#ifdef ROOT_OUTPUT
+
+                  // Set layer, ladder, sensor ID
+                  _rootLayerID     = layerID;
+                  _rootLadderID    = ladderID;
+                  _rootSensorID    = sensorID;
+
+                  // Set reconstructed positions
+                  _rootRecRPhi     = pClusterRPhi->getPosY() / mm;
+                  _rootRecZ        = pClusterZ->getPosZ()    / mm;
+
+                  // Set cluster sizes
+                  _rootClsSizeRPhi = pClusterRPhi->getSize();
+                  _rootClsSizeZ    = pClusterZ->getSize();
+
+                  // Set simulated position in RPhi & MC particle
+
+                  // Find SimTrackerHit with highest weight
+                  EVENT::SimTrackerHit * simHit = 0;
+                  float                  weight = 0;
+
+                  const SimTrackerHitMap & simHitMapRPhi = pClusterRPhi->getSimHitMap();
+
+                  for (iterSHM=simHitMapRPhi.begin(); iterSHM!=simHitMapRPhi.end(); iterSHM++) {
+
+                     // Find contribution with highest weight
+                     if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
+
+                        simHit = iterSHM->first;
+                        weight = iterSHM->second;
+                     }
+                  }
+
+                  // SimHit global position
+                  Hep3Vector simPosGlob;
+                  Hep3Vector simPosLoc;
+
+                  simPosGlob.setX(simHit->getPosition()[0]*mm);
+                  simPosGlob.setY(simHit->getPosition()[1]*mm);
+                  simPosGlob.setZ(simHit->getPosition()[2]*mm);
+                  simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, sensorID, simPosGlob);
+
+                  _rootMCPDGRPhi = simHit->getMCParticle()->getPDG();
+                  _rootSimRPhi   = simPosLoc.getY() / mm;
+
+                  // Set simulated position in Z & MC particle
+
+                  // Find SimTrackerHit with highest weight
+                  const SimTrackerHitMap & simHitMapZ = pClusterZ->getSimHitMap();
+
+                  for (iterSHM=simHitMapZ.begin(); iterSHM!=simHitMapZ.end(); iterSHM++) {
+
+                     // Find contribution with highest weight
+                     if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
+
+                        simHit = iterSHM->first;
+                        weight = iterSHM->second;
+                     }
+                  }
+
+                  // SimHit global position
+                  simPosGlob.setX(simHit->getPosition()[0]*mm);
+                  simPosGlob.setY(simHit->getPosition()[1]*mm);
+                  simPosGlob.setZ(simHit->getPosition()[2]*mm);
+                  simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, sensorID, simPosGlob);
+
+                  _rootMCPDGZ = simHit->getMCParticle()->getPDG();
+                  _rootSimZ   = simPosLoc.getZ() / mm;
+
+                  // Fill the tree
+                  _rootFile->cd("");
+                  _rootTree->Fill();
+
+#endif
+
+                  clsVec.push_back(pCluster3D);
+
+	for(std::map<int,std::map<StripType,ClsVec> >::iterator it = clsvectFrontRear.begin(); 
+			it != clsvectFrontRear.end(); ++it)
+	{
+		std::cout << "========================================== " << std::endl;
+		std::cout << "CELLID: " << it->first << std::endl;
+		for(std::map<StripType,ClsVec>::iterator itSV = it->second.begin();
+				itSV != it->second.end(); ++itSV)
+		{
+			std::cout << "  Strip Type: " << itSV->first << std::endl;
+			for(ClsVec::iterator itV = itSV->second.begin();
+					itV != itSV->second.end(); ++itV)
+			{
+				std::cout << "    Cluster Info " << std::endl;
+				std::cout << "       - Position[mm]:"
+					<< (*itV)->get3Position()/mm << std::endl;
+				std::cout << "       - Charge      :"
+					<< (*itV)->getCharge() << std::endl;
+			}
+		}
+	}
+
+			//-- Right neighbours
+/*			adjCharge = 0.0;
+			goNextStrip = true;
+			while( goNextStrip && LschMap != iterSMap->second[STRIPTYPE].end() )
+			{
+			      adjCharge = LschMap->getCharge();
+			      const SimTrackerHitMap & adjSimHitMap = LschMap->getSimHitMap();
+std::cout << "  Strip: " << LschMap->first<< " -- carga:" << adjCharge << "threshold:" <<
+	_SNadjacent*_CMSnoise<< " " ;
+			      // Charge higher than threshold set
+			      if( adjCharge >= (_SNadjacent*_CMSnoise) ) 
+			      {
+				      clsStrips[leftStrip] = 	new Signal(adjCharge, 0.);
+				      clsStrips[leftStrip]->updateSimHitMap(adjSimHitMap);
+				      // Set this charge as zero to avoid 
+				      // double counting
+				      iterSMap->second[STRIPZ][leftStrip]->setCharge(0.);
+				      // And go on to the next strip
+				      ++LschMap;
+std::cout << " ---- OK!!" << std::endl;
+			      }
+			      else  // Charge lower - stop searching
+			      {
+				      goNextStrip = false;
+			      }
+			}*/
+
+
+	//
 	// Cluster vector iterators
-	ClsVec::iterator iterClsVec, iterClsVec2;
+	//---ClsVec::iterator iterClsVec, iterClsVec2;
 	
 	// Initiate variables - layerID, ladderID, sensorID, stripID, seed strip, seed charge
-	short int layerID   = 0;
+	/*short int layerID   = 0;
 	short int ladderID  = 0;
-	short int sensorID  = 0;
+	short int sensorID  = 0;*/
 
 	//int      seedStrip  = 0;
 	//double   seedCharge = 0;
 	
 	// Bunch of strips forming cluster
-	StripChargeMap clsStrips;
+	//StripChargeMap clsStrips;
 	
 	//
 	// Search complete sensor map - find seeds & their neighbouring strips
@@ -1082,6 +1467,47 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 }
 
 // OTHER METHODS
+			
+//
+// Calculated and stored the hits adjacents
+// Template for the reverse_iterator (leftStrips) and iterator (rightStrips)
+//
+
+template<class It>
+StripChargeMap & SiStripClus::storeHitsAdjacents( StripChargeMap & clsStrips, 
+		It schMap, const It & endIt, StripChargeMap & currentMap)
+{
+	// Map ordered from lower to higher
+	double adjCharge = 0.0;
+	bool goNextStrip = true;
+	while( goNextStrip && schMap != endIt )
+	{
+		adjCharge = schMap->second->getCharge();
+		const SimTrackerHitMap & adjSimHitMap = schMap->second->getSimHitMap();
+std::cout << "  Strip: " << schMap->first<< " -- carga:" << adjCharge << " (threshold:" <<
+_SNadjacent*_CMSnoise<< ") " ;
+		// Charge higher than threshold set
+		if( adjCharge >= (_SNadjacent*_CMSnoise) ) 
+		{
+			clsStrips[schMap->first] = new Signal(adjCharge, 0.);
+			clsStrips[schMap->first]->updateSimHitMap(adjSimHitMap);
+			// Set this charge as zero to avoid 
+			// double counting
+			currentMap[schMap->first]->setCharge(0.);
+			// And go on to the next strip
+			++schMap;
+std::cout << " ---- OK!!" << std::endl;
+		}
+		else  // Charge lower - stop searching
+		{
+			goNextStrip = false;
+std::cout << "  NOT STORED" << std::endl;
+		}
+	}
+
+	return clsStrips;
+}
+
 
 //
 // Method calculating hits from given clusters
