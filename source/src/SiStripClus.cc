@@ -354,7 +354,7 @@ void SiStripClus::processEvent(LCEvent * event)
 			// Update the sensor strip map with the pulse
 			updateMap(pulse, sensorMap);
 		}
-
+		
 /*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); iterSMap++) 
 {
 std::cout << "----- cellID:" << iterSMap->first << std::endl;
@@ -372,10 +372,9 @@ std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iter
 	}
 }
 exit(0);*/
-      //
-      // Find clusters
-      ClsVec clsVec;
-      findClus(sensorMap, clsVec);
+		//
+		// Find clusters
+		ClsVec clsVec = findClus(sensorMap);
 
       // Releasing memory and clearing
       releaseMap(sensorMap);
@@ -443,11 +442,9 @@ void SiStripClus::end()
 //
 // Method searching for clusters
 //
-void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
+ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 {
-	// Sensor map iterators
-	//SensorStripMap::iterator iterSMap;
-	//StripChargeMap::iterator iterChMap, iterChMap2, iterChMapLast;
+	ClsVec clsVec;
 	
 	// Cluster vectors - in R-Phi, in Z
 	ClsVec clsVecInRPhi, clsVecInZ;
@@ -477,13 +474,16 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 		std::map<std::string,int> bfmap = _geometry->decodeCellID(cellID);
 		layerID = bfmap["layer"];
 		ladderID= bfmap["module"];
-		sensorID= bfmap["sensor"];
+		sensorID= bfmap["sensor"]; // NOTA QUE YA NO TIENE SENTIDO
+		// SI FRONT --> sensorID = 1
+		// SI REAR  --> sensorID = 3
 		
 		//
 		// Clusters in Z
 		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPZ].begin(); 
 				iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) 
 		{
+			sensorID = 1;
 			//
 			// Zero: Save new candidate for seed strip + MC true info
 			int seedStrip  = iterChMap->first;
@@ -627,7 +627,7 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 				// Current strip ID, posZ & charge
 				int stripID        = iterChMap2->first;
 				//double stripPosZ   = _geometry->getStripPosInZ(layerID, stripID);
-				double  stripPosZ   = _geometry->getStripPos(layerID, sensorID,stripID,0.0);
+				double  stripPosZ   = _geometry->getStripPosY(layerID, sensorID,stripID,0.0);
 				double stripCharge = iterChMap2->second->getCharge();
 				
 				// Update info about MC particles which contributed
@@ -741,6 +741,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
 		//
 		// Clusters in R-Phi + 3D clusters utilizing Z (use Z position of "clusters in Z" and create 3D clusters from them)
 		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) {
+			
+	 sensorID = 3;
 
          //
          // Zero: Save new candidate for seed strip + MC true info
@@ -866,7 +868,7 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
                   // Current strip ID, posRPhi & charge
                   int stripID         = iterChMap2->first;
                   //double stripPosRPhi = _geometry->getStripPosInRPhi(layerID, stripID, pClusterZ->getPosZ());
-                  double stripPosRPhi = _geometry->getStripPos(layerID, sensorID, stripID,pClusterZ->getPosZ());
+                  double stripPosRPhi = _geometry->getStripPosY(layerID, sensorID, stripID,pClusterZ->getPosZ());
                   double stripCharge  = iterChMap2->second->getCharge();
 
                   // Update info about MC particles which contributed
@@ -1070,6 +1072,8 @@ void SiStripClus::findClus(SensorStripMap & sensorMap, ClsVec & clsVec)
       clsVecInZ.clear();
 
    } // For sensor map
+
+  return clsVec;
 
 }
 

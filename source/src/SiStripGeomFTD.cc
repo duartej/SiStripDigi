@@ -30,23 +30,6 @@
 
 
 
-// FIXME: Maybe to be changed in gear xml. By the moment
-//        the xml gives mm as distance unit whereas this
-//        module uses cm.
-
-//template <class T> void convertunits(std::vector<T> & v2convert);
-
-//FIXME: DEPRECATED
-template <class T>
-void convertunits(std::vector<T> & vectoconvert, const T unit)
-{
-	for(unsigned int i=0; i < vectoconvert.size(); i++)
-	{
-		vectoconvert[i] = vectoconvert[i]*unit;
-	}
-}
-
-
 namespace sistrip 
 {
 SiStripGeomFTD::SiStripGeomFTD(const std::string & detector):
@@ -887,6 +870,24 @@ std::cout << "----> " << sensPitch*stripID << " (Y-position)" << std::endl;
 std::cout << "END SiStripGeomFTD::getStripIDInRPhi" << std::endl;
 	return stripID;
 }*/
+//! Get director vector of a strip (inside the local Ref. system)
+//! The vector is defined to describe the strip from z_local=0
+CLHEP::Hep3Vector SiStripGeomFTD::getStripUnitVector(const int & diskID, const int & sensorID,
+		const int & stripID) const
+{
+	// Extract y in z=0 and in z=L
+	const double yatz0 = getStripPosY(diskID,sensorID,stripID,0.0);
+	const double yatzL = getStripPosY(diskID,sensorID,stripID,getSensorLength(diskID));
+	// Defining positive u-component if yatz0 > Width/2.0
+	const double Dy = yatzL-yatz0;
+
+	const double alpha = atan(Dy/getSensorLength(diskID));
+	//FIXME: Control that alpha<pi/2
+
+	const int u_sign = fabs(alpha)/alpha;
+
+	return CLHEP::Hep3Vector(0.0,u_sign*sin(alpha),cos(alpha));
+}
 
 //
 // Get the stereo angle given a sensor
@@ -1079,7 +1080,7 @@ double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID,
 // Get the Y position (in the local ref. frame) for the given strip, posZ 
 // is the point in the local reference system of the petal
 //
-double SiStripGeomFTD::getStripPos(const int & diskID, const int & sensorID, 
+double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID, 
 		const int & stripID, const double & posZ) const
 {
 	// Can't be stripID = 0

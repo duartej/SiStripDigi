@@ -117,8 +117,8 @@ class SiStripGeomFTD: public SiStripGeom
 		virtual double getSensorPitch(const int & diskID, const int & sensorID,
 				const double & posZ) const;
 		
-		//! Get position in the local ref. system for the stripID
-		virtual double getStripPos(const int & diskID, 	const int & sensorID, 
+		//! Get Y-centered position in the local ref. system for the stripID
+		virtual double getStripPosY(const int & diskID, const int & sensorID, 
 				const int & stripID, const double & posZ) const;
 
 		//! Get number of strips per sensor
@@ -128,6 +128,11 @@ class SiStripGeomFTD: public SiStripGeom
 		//! which is rotated around its center an angle stAngle
 		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
 				const int & sensorID, const CLHEP::Hep3Vector & point) const;
+
+		//! Get director vector of a strip (inside the local Ref. system)
+		//! The vector is defined to describe the strip from z_local=0
+		virtual CLHEP::Hep3Vector getStripUnitVector(const int & diskID, 
+				const int & sensorID, const int & stripID) const;
 
 		
 		// OTHER METHODS - IDENTIFYING

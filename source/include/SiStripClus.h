@@ -92,7 +92,7 @@ class SiStripClus : public Processor
 			//!R-Phi or Z. Finally, they are mixed into 3D cluster. (input parameter: sensor map
 			//!of strips with total integrated charge, output parameter: sensor map of clusters
 			//!found by this algorithm)
-			void findClus(SensorStripMap & sensStripMap, ClsVec & clsVec);
+			ClsVec findClus(SensorStripMap & sensorMap);
 			
 			// OTHER METHODS
 			//!Method calculating hits from given clusters

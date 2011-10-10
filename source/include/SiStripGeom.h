@@ -232,8 +232,8 @@ class SiStripGeom
 //		//!Get strip ID for strips lying in the RPhi local plane
 //		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
 //				double posZ) const = 0;
-		//!Get strip position
-		virtual double getStripPos(const int & layerID, const int & sensorID, 
+		//!Get strip y-position
+		virtual double getStripPosY(const int & layerID, const int & sensorID, 
 				const int & stripID, const double & posZ) const =0;
 		//!Get strip ID
 		virtual int getStripID(const int & layerID, const int & sensorID, 
@@ -243,6 +243,11 @@ class SiStripGeom
 		//! which is rotated around its center an angle stAngle
 		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
 				const int & sensorID, const CLHEP::Hep3Vector & point) const = 0;
+		
+		//! Get director vector of a strip (inside the local Ref. system)
+		//! The vector is defined to describe the strip from z_local=0
+		virtual CLHEP::Hep3Vector getStripUnitVector(const int & diskID, 
+				const int & sensorID, const int & stripID) const = 0;
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters
