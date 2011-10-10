@@ -483,7 +483,7 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPZ].begin(); 
 				iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++) 
 		{
-			sensorID = 1;
+			sensorID = 3;
 			//
 			// Zero: Save new candidate for seed strip + MC true info
 			int seedStrip  = iterChMap->first;
@@ -626,7 +626,6 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			{
 				// Current strip ID, posZ & charge
 				int stripID        = iterChMap2->first;
-				//double stripPosZ   = _geometry->getStripPosInZ(layerID, stripID);
 				double  stripPosZ   = _geometry->getStripPosY(layerID, sensorID,stripID,0.0);
 				double stripCharge = iterChMap2->second->getCharge();
 				
@@ -742,7 +741,7 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 		// Clusters in R-Phi + 3D clusters utilizing Z (use Z position of "clusters in Z" and create 3D clusters from them)
 		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPRPHI].begin(); iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++) {
 			
-	 sensorID = 3;
+	 sensorID = 1;
 
          //
          // Zero: Save new candidate for seed strip + MC true info

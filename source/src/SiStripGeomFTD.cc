@@ -1034,32 +1034,9 @@ double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID,
 		exit(0);
 	}
 	
-	const double tanPhi = tan(_ftdLayer->getPhiHalfDistance(diskID));
-//	CLHEP::Hep3Vector point(0.0,0.0,posZ);
-
-/*	// Changing reference system: rotate the petal in its centroid point
+	// Changing reference system: rotate the petal in its centroid point
 	// to obtain the strips with the stereo angle
-	double ycentre = getSensorWidth2(diskID)/2.0;
-	if(getSensorWidth(diskID)/2.0 > ycentre)
-	{
-		ycentre = getSensorWidth(diskID)/2.0;
-	}
-	const double zcentre = getSensorLength(diskID)/2.0;
-
-	// The centre of the rotation
-	CLHEP::Hep3Vector rotcentre(0.0,ycentre,zcentre);
-	// Translating Zpos to the new ref. system
-	point -= rotcentre;
-
-	// Rotating the posZ vector to the new coordinate system
-	// Now we have the hit point from the system placed in the centre
-	// of the sensor and rotated the stereo angle
-	point.rotateX(-stAngle);
-	// We need to return to the local ref. frame (defined along this code)
-	// placed in a petal 'rotated'
-	rotcentre.rotateX(-stAngle);
-	// And extract the point in that system
-	point += rotcentre;*/
+	const double tanPhi = tan(_ftdLayer->getPhiHalfDistance(diskID));
 	CLHEP::Hep3Vector point = transformPointToRotatedLocal( diskID, sensorID,
 			CLHEP::Hep3Vector(0.,0.0,posZ) );
 
@@ -1091,7 +1068,8 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 			<< std::endl;
 		exit(-1);
 	}
-
+//std::cout << "+++++++++++++" <<std::endl;
+//std::cout << "   Posz=" << posZ << " Sensor: " << sensorID <<std::endl;
 	// Extract zPos position in the local rotated frame (if proceed)
 	const double zPosPrime = transformPointToRotatedLocal( diskID,
 			sensorID, CLHEP::Hep3Vector(0.0,0.0,posZ) ).getZ();
@@ -1099,8 +1077,8 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 	const double tanPhi = tan(_ftdLayer->getPhiHalfDistance(diskID));
 	const double yorigen = (getSensorLength(diskID)-zPosPrime)*tanPhi;
 
-	// Get pitch
-	double sensPitch = getSensorPitch(diskID,sensorID,zPosPrime);
+	// Get pitch (da el pitch teniendo en cuenta lo que tiene que tener)
+	double sensPitch = getSensorPitch(diskID,sensorID,posZ);
 	if(sensPitch < 1e-40) 
 	{
 		streamlog_out(ERROR) << "SiStripGeomFTD::getStripPos " 
@@ -1109,7 +1087,7 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 		exit(-1);
 	}
 
-	// Calculate position
+	// Calculate position (Center of the strip)
 	double posRPhi = yorigen+sensPitch*(stripID + 0.5);
 	// Error
 	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(diskID)) ) 
@@ -1121,7 +1099,10 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 	}
 	
 	// Return R-Phi position of given strip in local ref. system
-	return posRPhi;
+	CLHEP::Hep3Vector pointInSRL = transformPointFromRotatedLocal(diskID,
+			sensorID,CLHEP::Hep3Vector(0.0,posRPhi,zPosPrime));
+
+	return pointInSRL.getY();
 }
 
 //
@@ -1150,25 +1131,60 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToRotatedLocal(const int & diskI
 	// Translating Zpos to the new ref. system
 	pointPrime -= rotcentre;
 
-	// Rotating the posZ vector to the new coordinate system
 	// Now we have the hit point from the system placed in the centre
 	// of the sensor and rotated the stereo angle
-//	pointPrime.rotateX(-stAngle);
+
 	// We need to return to the local ref. frame (defined along this code)
 	// placed in a petal 'rotated'
 	rotcentre.rotateX(-stAngle);
 	// And extract the point in that system
 	pointPrime += rotcentre;
 
-	pointPrime.rotateX(-stAngle);
-	/* // Consistency Check
-	CLHEP::Hep3Vector Orig(0.,0.,0.);
+	// Rotating the vector to the new coordinate system--->NOOO
+	//pointPrime.rotateX(-stAngle);
+	// Consistency Check
+	/*CLHEP::Hep3Vector Orig(0.,0.,0.);
 	Orig = CLHEP::Hep3Vector(0.0,ycentre,zcentre)-rotcentre;
-	std::cout << " pointPrime+O =? P :" << pointPrime + Orig << " =? " << point << std::endl;*/
+	std::cout << "To-- pointPrime+O =? P :" << pointPrime + Orig << " =? " << point << std::endl;*/
 	
 	return pointPrime;
 }
 
+//
+// Inverse transformation of transformPointToRotatedLocal (see this function)
+//
+
+CLHEP::Hep3Vector SiStripGeomFTD::transformPointFromRotatedLocal(const int & diskID, 
+		const int & sensorID, const CLHEP::Hep3Vector & pointPrime) const
+{
+	CLHEP::Hep3Vector point(pointPrime);
+	
+	const double stAngle = getStereoAngle(diskID,sensorID);
+	
+	// center of the petal
+	double ycentre = getSensorWidth2(diskID)/2.0;
+	if(getSensorWidth(diskID)/2.0 > ycentre)
+	{
+		ycentre = getSensorWidth(diskID)/2.0;
+	}
+	const double zcentre = getSensorLength(diskID)/2.0;
+
+	CLHEP::Hep3Vector rotcentre(0.0,ycentre,zcentre);
+	rotcentre.rotateX(-stAngle);
+
+	// Positioning in the center of the rotating frame
+	point -= rotcentre;
+	
+	// And positioning in the origin
+	point += CLHEP::Hep3Vector(0.0,ycentre,zcentre);
+
+/*	// Consistency Check
+	CLHEP::Hep3Vector Orig(0.,0.,0.);
+	Orig = CLHEP::Hep3Vector(0.0,ycentre,zcentre)-rotcentre;
+	std::cout << " pointPrime+O =? P :" << pointPrime + Orig << " =? " << point << std::endl;*/
+	
+	return point;
+}
 
 // PRINT METHODS
 

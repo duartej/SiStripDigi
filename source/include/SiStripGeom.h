@@ -244,6 +244,12 @@ class SiStripGeom
 		virtual CLHEP::Hep3Vector transformPointToRotatedLocal(const int & diskID, 
 				const int & sensorID, const CLHEP::Hep3Vector & point) const = 0;
 		
+		//! Transforming a given point from the reference system rotated around
+		//! the center of a petal to its local ref. frame (inverse of 
+		//! transformPointToRotatedLocal)
+		virtual CLHEP::Hep3Vector transformPointFromRotatedLocal(const int & diskID, 
+				const int & sensorID, const CLHEP::Hep3Vector & point) const = 0;
+
 		//! Get director vector of a strip (inside the local Ref. system)
 		//! The vector is defined to describe the strip from z_local=0
 		virtual CLHEP::Hep3Vector getStripUnitVector(const int & diskID, 
