@@ -357,7 +357,9 @@ void SiStripClus::processEvent(LCEvent * event)
 		
 /*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); ++iterSMap) 
 {
-std::cout << "----- cellID:" << iterSMap->first << std::endl;
+std::map<std::string,int> kk = _geometry->decodeCellID(iterSMap->first);
+std::cout << "----- cellID:" << iterSMap->first << " diskID:" << kk["layer"] <<
+" petal:" << kk["module"]+1 << " sensor:" << kk["sensor"] << std::endl;
 std::cout << "       - Type: " << STRIPFRONT << std::endl;
 	// Strips in FRONT
 	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); iterChMap!=iterSMap->second[STRIPFRONT].end(); ++iterChMap)
@@ -528,9 +530,6 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			SimTrackerHitMap clsSimHitMap;
 			
 			// Cluster: position, charge & size
-			//int clsSizeZ   = clsStrips.size();
-			//double    clsPosZ    = 0.;*/
-
 			double    clsCharge  = 0.0;
 			
 			double xLeftSignal   = 0.0;
@@ -549,8 +548,11 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			    stripID        = iterChMap2->first;
 			    const double stripPosYatz0= _geometry->getStripPosY(layerID, 
 					    sensorID,stripID,0.0);
-//			    const CLHEP::Hep3Vector stripVector = 
-//				    _geometry->getStripUnitVector(layerID,sensorID,stripID);
+
+std::cout << " stripPosYatZ0:" << _geometry->transformPointToGlobal(layerID,ladderID,
+		sensorID,CLHEP::Hep3Vector(0.0,stripPosYatz0,0.0)) << std::endl;exit(0);
+
+			    
 			    const double stripCharge = iterChMap2->second->getCharge();
 			    
 			    // Update info about MC particles which contributed
@@ -671,15 +673,14 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			for(StripChargeMap::iterator iterChMap2=clsStrips.begin(); 
 					iterChMap2!=clsStrips.end(); iterChMap2++) 
 			{
-				delete iterChMap2->second;
+				delete iterChMap2->second; //Signal pointers
 			}
 			
 			// Clear content
 			clsStrips.clear();
-			
-		   } // For clusters type
-	     }  
-	}
+		   } 
+	     }  // For cluster strip type (front-rear)
+	}  // For sensor map
 	
 	
 	// Stores the hit (using the STRIPFRONT as init)
@@ -702,6 +703,7 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 					stripIDFront,0.0);
 			const double yatzLFront = _geometry->getStripPosY(layerID,1,
 					stripIDFront,_geometry->getSensorLength(layerID));
+			
 			
 			// Checking with the Rear sensors
 			for(std::vector<StripClusterPair>::iterator 
@@ -728,18 +730,32 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			      // Cluster in front, extracting the unitary vector which
 			      // defines the strip in the local ref. system
 			      StripCluster * pclusterFront = itFront->second;
-			      // Cluster in front, extracting the unitary vector which
+			      // Cluster in Rear, extracting the unitary vector which
 			      // defines the strip in the local ref. system		      
 			      StripCluster * pclusterRear  = itRear->second;
 
 			      // Get the intersection point
 			      Hep3Vector position = _geometry->getCrossLinePoint(layerID,
 					      ladderID,stripIDFront,stripIDRear);
-			      Hep3Vector posSigma( _geometry->getSensorThick(layerID)/2., 
-					      pClusterRPhi->getPosSigmaY(), pClusterZ->getPosSigmaZ());
+
+			      // FIXME: Sigma calculation!??
+			      const double sigmaY = sqrt(
+					      pclusterFront->getPosY()*pclusterFront->getPosY()+
+					      pclusterRear->getPosY()*pclusterRear->getPosY());
+			      const double sigmaZ = sqrt(
+					      pclusterFront->getPosZ()*pclusterFront->getPosZ()+
+					      pclusterRear->getPosZ()*pclusterRear->getPosZ());
+			      Hep3Vector posSigma(_geometry->getSensorThick(layerID)/2., 
+					      sigmaY, sigmaZ);
 
 			      double totalCharge = ( pclusterFront->getCharge() +
 					      pclusterRear->getCharge())/2.0;
+			      
+			      // Always postiioned as it was in the front
+			      StripCluster * pCluster3D = new StripCluster( layerID, ladderID,
+					      1, position, posSigma, totalCharge, 0);
+			      
+
 /*std::cout << "CELLID:" << cellID <<" INTERSECTAN!!"<<std::endl;
 std::cout << "   Disco: " << layerID << " petal: " << ladderID << std::endl;
 std::cout << "      ----- Front:: StripID:"   << stripIDFront << " (Strip Media:"
@@ -748,134 +764,161 @@ std::cout << "      ----- Rear:: StripID:"   << stripIDRear << " (Strip Media:"
 	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<<std::endl;
 std::cout << "******HIT:  Carga total: " << totalCharge 
 	<< "Punto del hit: " << position << std::endl;*/
+			      
+			      // Update MC true info for 3Dp
+			      SimTrackerHitMap cls3DSimHitMap = pclusterFront->getSimHitMap();
 
-			} // for rear sensors
-		}  // for front sensors
-	}
-	
-	/*                  Hep3Vector position( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosY()     , pClusterZ->getPosZ());
-                  Hep3Vector posSigma( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosSigmaY(), pClusterZ->getPosSigmaZ());
-
-                  double     totalCharge = (pClusterRPhi->getCharge() + pClusterZ->getCharge() )/2.;
-
-                  StripCluster * pCluster3D = new StripCluster( layerID, ladderID, sensorID, position, posSigma, totalCharge, 0);
-
-                  SimTrackerHitMap cls3DSimHitMap = clsRPhiSimHitMap;
-
-                  // Update MC true info for 3D
-                  if (cls3DSimHitMap.size() != 0) {
-
-                     for (iterSHM=clsZSimHitMap.begin(); iterSHM!=clsZSimHitMap.end(); iterSHM++) {
-
-                        EVENT::SimTrackerHit * simHit = dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
-                        float                  weight = iterSHM->second;
-
-                        if (cls3DSimHitMap.find(simHit)!=cls3DSimHitMap.end()) cls3DSimHitMap[simHit] += weight;
-                        else                                                   cls3DSimHitMap[simHit]  = weight;
-                     }
-
-                     pCluster3D->updateSimHitMap(cls3DSimHitMap);
-                  }
-
-                  //
-                  // if defined ROOT-OUTPUT, save info
+			      if(cls3DSimHitMap.size() != 0) 
+			      {
+				   SimTrackerHitMap clsRearSimHitMap=
+					   pclusterRear->getSimHitMap();
+				   for(SimTrackerHitMap::iterator iterSHM=
+						   clsRearSimHitMap.begin(); 
+						   iterSHM!=clsRearSimHitMap.end(); iterSHM++)
+				   {
+			              EVENT::SimTrackerHit * simHit = 
+				         dynamic_cast<EVENT::SimTrackerHit *>(iterSHM->first);
+				      float weight = iterSHM->second;
+				      if(cls3DSimHitMap.find(simHit)!=cls3DSimHitMap.end())
+				      {
+					      cls3DSimHitMap[simHit] += weight;
+				      }
+				      else
+				      {
+					      cls3DSimHitMap[simHit]  = weight;
+				      }
+				   }
+				   pCluster3D->updateSimHitMap(cls3DSimHitMap);
+			      }
+			      //
+			      // if defined ROOT-OUTPUT, save info
 #ifdef ROOT_OUTPUT
+			      // Set layer, ladder, sensor ID
+			      _rootLayerID     = layerID;
+			      _rootLadderID    = ladderID;
+			      _rootSensorID    = 0;
+			      
+			      // Set reconstructed position
+			      _rootRecRPhi     = pCluster3D->getPosY() / mm;
+			      _rootRecZ        = pCluster3D->getPosZ()    / mm;
+			      // Set cluster sizes
+			      _rootClsSizeRPhi = pclusterFront->getSize();
+			      _rootClsSizeZ    = pclusterRear->getSize();
 
-                  // Set layer, ladder, sensor ID
-                  _rootLayerID     = layerID;
-                  _rootLadderID    = ladderID;
-                  _rootSensorID    = sensorID;
 
-                  // Set reconstructed positions
-                  _rootRecRPhi     = pClusterRPhi->getPosY() / mm;
-                  _rootRecZ        = pClusterZ->getPosZ()    / mm;
-
-                  // Set cluster sizes
-                  _rootClsSizeRPhi = pClusterRPhi->getSize();
-                  _rootClsSizeZ    = pClusterZ->getSize();
-
-                  // Set simulated position in RPhi & MC particle
-
-                  // Find SimTrackerHit with highest weight
-                  EVENT::SimTrackerHit * simHit = 0;
-                  float                  weight = 0;
-
-                  const SimTrackerHitMap & simHitMapRPhi = pClusterRPhi->getSimHitMap();
-
-                  for (iterSHM=simHitMapRPhi.begin(); iterSHM!=simHitMapRPhi.end(); iterSHM++) {
-
-                     // Find contribution with highest weight
-                     if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
-
-                        simHit = iterSHM->first;
-                        weight = iterSHM->second;
-                     }
-                  }
-
-                  // SimHit global position
-                  Hep3Vector simPosGlob;
-                  Hep3Vector simPosLoc;
-
-                  simPosGlob.setX(simHit->getPosition()[0]*mm);
-                  simPosGlob.setY(simHit->getPosition()[1]*mm);
-                  simPosGlob.setZ(simHit->getPosition()[2]*mm);
-                  simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, sensorID, simPosGlob);
-
-                  _rootMCPDGRPhi = simHit->getMCParticle()->getPDG();
-                  _rootSimRPhi   = simPosLoc.getY() / mm;
-
-                  // Set simulated position in Z & MC particle
-
-                  // Find SimTrackerHit with highest weight
-                  const SimTrackerHitMap & simHitMapZ = pClusterZ->getSimHitMap();
-
-                  for (iterSHM=simHitMapZ.begin(); iterSHM!=simHitMapZ.end(); iterSHM++) {
-
-                     // Find contribution with highest weight
-                     if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
-
-                        simHit = iterSHM->first;
-                        weight = iterSHM->second;
-                     }
-                  }
-
-                  // SimHit global position
-                  simPosGlob.setX(simHit->getPosition()[0]*mm);
-                  simPosGlob.setY(simHit->getPosition()[1]*mm);
-                  simPosGlob.setZ(simHit->getPosition()[2]*mm);
-                  simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, sensorID, simPosGlob);
-
-                  _rootMCPDGZ = simHit->getMCParticle()->getPDG();
-                  _rootSimZ   = simPosLoc.getZ() / mm;
-
-                  // Fill the tree
-                  _rootFile->cd("");
-                  _rootTree->Fill();
-
+			      // Set simulated position in Front & MC particle
+			      
+			      // Find SimTrackerHit with highest weight
+			      EVENT::SimTrackerHit * simHit = 0;
+			      float                  weight = 0;
+			      
+			      const SimTrackerHitMap & simHitMapFront =
+				      pclusterFront->getSimHitMap();
+			      for(SimTrackerHitMap::const_iterator iterSHM = 
+					      simHitMapFront.begin(); 
+					      iterSHM!=simHitMapFront.end(); ++iterSHM) 
+			      {
+				      // Find contribution with highest weight
+				      if( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) 
+				      {
+					      simHit = iterSHM->first;
+					      weight = iterSHM->second;
+				      }
+			      }
+			      
+			      // SimHit global position
+			      Hep3Vector simPosGlob;
+			      Hep3Vector simPosLoc;
+			      
+			      simPosGlob.setX(simHit->getPosition()[0]*mm);
+			      simPosGlob.setY(simHit->getPosition()[1]*mm);
+			      simPosGlob.setZ(simHit->getPosition()[2]*mm);
+			      simPosLoc = _geometry->transformPointToLocal(layerID, 
+					      ladderID, 1, simPosGlob);
+			      _rootMCPDGRPhi = simHit->getMCParticle()->getPDG();
+			      _rootSimRPhi   = simPosLoc.getY() / mm;
+			      
+			      // Set simulated position in Rear & MC particle
+			      
+			      // Find SimTrackerHit with highest weight
+			      const SimTrackerHitMap & simHitMapRear = 
+				      pclusterRear->getSimHitMap();
+			      
+			      for(SimTrackerHitMap::const_iterator iterSHM=
+					      simHitMapRear.begin(); 
+					      iterSHM!=simHitMapRear.end(); ++iterSHM) 
+			      {
+				      // Find contribution with highest weight
+				      if( (iterSHM->first!=0) && ((iterSHM->second)>weight) )
+				      {
+					      simHit = iterSHM->first;
+					      weight = iterSHM->second;
+				      }
+			      }
+			      
+			      // SimHit global position
+			      simPosGlob.setX(simHit->getPosition()[0]*mm);
+			      simPosGlob.setY(simHit->getPosition()[1]*mm);
+			      simPosGlob.setZ(simHit->getPosition()[2]*mm);
+			      simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, 
+					      3, simPosGlob);
+			      _rootMCPDGZ = simHit->getMCParticle()->getPDG();
+			      _rootSimZ   = simPosLoc.getZ() / mm;
+			      
+			      // Fill the tree
+			      _rootFile->cd("");
+			      _rootTree->Fill();
+			      
 #endif
-
-                  clsVec.push_back(pCluster3D);
-
-	for(std::map<int,std::map<StripType,ClsVec> >::iterator it = clsvectFrontRear.begin(); 
+			      
+			      clsVec.push_back(pCluster3D);
+			}  // for rear sensors
+		}  // for front sensors
+	} // For cluster strip vector pairs
+	
+	for(SensorStripClusterMap::iterator it = clsvectFrontRear.begin(); 
 			it != clsvectFrontRear.end(); ++it)
 	{
 		std::cout << "========================================== " << std::endl;
 		std::cout << "CELLID: " << it->first << std::endl;
-		for(std::map<StripType,ClsVec>::iterator itSV = it->second.begin();
-				itSV != it->second.end(); ++itSV)
+		for(std::map<StripType,std::vector<StripClusterPair> >::iterator itM
+				= it->second.begin(); itM != it->second.end(); ++itM)
 		{
-			std::cout << "  Strip Type: " << itSV->first << std::endl;
-			for(ClsVec::iterator itV = itSV->second.begin();
-					itV != itSV->second.end(); ++itV)
+			std::cout << "  Strip Type: " << itM->first << std::endl;
+			for(std::vector<StripClusterPair>::iterator itP = itM->second.begin();
+					itP != itM->second.end(); ++itP)
 			{
 				std::cout << "    Cluster Info " << std::endl;
 				std::cout << "       - Position[mm]:"
-					<< (*itV)->get3Position()/mm << std::endl;
+					<< itP->second->get3Position()/mm << std::endl;
 				std::cout << "       - Charge      :"
-					<< (*itV)->getCharge() << std::endl;
+					<< itP->second->getCharge() << std::endl;
 			}
 		}
-	}*/
+	}
+
+	// Release memory
+	for(SensorStripClusterMap::iterator it = clsvectFrontRear.begin();
+			it != clsvectFrontRear.end(); ++it)
+	{
+              for(std::map<StripType,std::vector<StripClusterPair> >::iterator itMap = 
+			      it->second.begin();
+			      itMap != it->second.end(); ++itMap)
+	      {
+		    for(std::vector<StripClusterPair>::iterator itSCl = itMap->second.begin();
+				    itSCl != itMap->second.end(); ++itSCl)
+		    {
+			    if( itSCl->second != 0)
+			    {
+				    delete itSCl->second;
+			    }
+		    }
+	      }
+	}
+
+
+	return clsVec;
+}
 
 			//-- Right neighbours
 /*			adjCharge = 0.0;
@@ -1529,10 +1572,6 @@ std::cout << " ---- OK!!" << std::endl;
 
    } // For sensor map*/
 
-  return clsVec;
-
-}
-
 // OTHER METHODS
 			
 //
@@ -1925,7 +1964,7 @@ void SiStripClus::printHitInfo(const StripCluster * pCluster) const
    streamlog_out(MESSAGE2) << "    Layer "
                            << _geometry->getLayerRealID(layerID)   << " "
                            << "Ladder "
-                           << ladderID                             << " "
+                           << ladderID+1                           << " "
                            << "Sensor "
                            << sensorID                             << std::endl;
    streamlog_out(MESSAGE2) << "     Hit in local ref. system: "
