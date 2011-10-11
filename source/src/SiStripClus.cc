@@ -720,6 +720,9 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			      {
 				      continue;
 			      }
+			 std::cout << "y0Front= " << yatz0Front << " y0Rear=" << yatz0Rear
+				 << " --  yLFront=" << yatzLFront<< " yLFront=" << yatzLRear
+				 << std::endl;
 
 			      // There are intersection, so store the Hit
 			      // Cluster in front, extracting the unitary vector which
@@ -732,16 +735,19 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			      // Get the intersection point
 			      Hep3Vector position = _geometry->getCrossLinePoint(layerID,
 					      ladderID,stripIDFront,stripIDRear);
+			      Hep3Vector posSigma( _geometry->getSensorThick(layerID)/2., 
+					      pClusterRPhi->getPosSigmaY(), pClusterZ->getPosSigmaZ());
 
 			      double totalCharge = ( pclusterFront->getCharge() +
 					      pclusterRear->getCharge())/2.0;
-			      std::cout << "CELLID:" << cellID <<" INTERSECTAN!! Front:" 
-				      << stripIDFront << " REAR:"
-				      << stripIDRear << "  en el disco " << layerID 
-				      << " petal " << ladderID 
-				      << " Carga total: " << totalCharge 
-				      << "Punto del hit: " << position << std::endl;
-			      ---> FALLA ALGO, la z es incorrecta!!
+/*std::cout << "CELLID:" << cellID <<" INTERSECTAN!!"<<std::endl;
+std::cout << "   Disco: " << layerID << " petal: " << ladderID << std::endl;
+std::cout << "      ----- Front:: StripID:"   << stripIDFront << " (Strip Media:"
+	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<< std::endl;
+std::cout << "      ----- Rear:: StripID:"   << stripIDRear << " (Strip Media:" 
+	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<<std::endl;
+std::cout << "******HIT:  Carga total: " << totalCharge 
+	<< "Punto del hit: " << position << std::endl;*/
 
 			} // for rear sensors
 		}  // for front sensors

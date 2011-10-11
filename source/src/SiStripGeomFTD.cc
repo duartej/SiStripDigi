@@ -880,11 +880,10 @@ CLHEP::Hep3Vector SiStripGeomFTD::getStripUnitVector(const int & diskID, const i
 	const double yatzL = getStripPosY(diskID,sensorID,stripID,getSensorLength(diskID));
 	// Defining positive u-component if yatz0 > Width/2.0
 	const double Dy = yatzL-yatz0;
+	const int u_sign = fabs(Dy)/Dy;
 
 	const double alpha = atan(Dy/getSensorLength(diskID));
 	//FIXME: Control that alpha<pi/2
-
-	const int u_sign = fabs(alpha)/alpha;
 
 	return CLHEP::Hep3Vector(0.0,u_sign*sin(alpha),cos(alpha));
 }
@@ -892,16 +891,16 @@ CLHEP::Hep3Vector SiStripGeomFTD::getStripUnitVector(const int & diskID, const i
 //
 // Get the point crossing two strips (returning in the middle of the sensor)
 //
-CLHEP::Hep3Vector SiStripGeomFTD::getCrossLinePoint(const int & diskID, const int & sensorID,
+CLHEP::Hep3Vector SiStripGeomFTD::getCrossLinePoint(const int & diskID, const int & petalID,
 		const int & stripIDFront, const int & stripIDRear) const
 {
 	// Extract y in z=0 in front and rear
-	const double yatz0Front = getStripPosY(diskID,sensorID,stripIDFront,0.0);
-	const double yatz0Rear = getStripPosY(diskID,sensorID,stripIDRear,0.0);
+	const double yatz0Front = getStripPosY(diskID,1,stripIDFront,0.0);
+	const double yatz0Rear = getStripPosY(diskID,3,stripIDRear,0.0);
 
 	// Director vectors of the strips
 	CLHEP::Hep3Vector uFront = getStripUnitVector(diskID,1,stripIDFront);
-	CLHEP::Hep3Vector uRear  = getStripUnitVector(diskID,1,stripIDRear);
+	CLHEP::Hep3Vector uRear  = getStripUnitVector(diskID,3,stripIDRear);
 	
 	// Strip line parametrized with t => r = (yatz0,0)+t(uz,uy)
 	const double extProd = uFront.getY()*uRear.getZ()-uFront.getZ()*uRear.getY();
@@ -909,6 +908,9 @@ CLHEP::Hep3Vector SiStripGeomFTD::getCrossLinePoint(const int & diskID, const in
 
 	const double y = yatz0Rear+tR*uRear.getY();
 	const double z = tR*uRear.getZ();
+std::cout<< "======== Front: " <<uFront << " y0=" << yatz0Front << std::endl;
+std::cout<< "         Rear:  " <<uRear<< "   y0=" << yatz0Rear  << std::endl;
+std::cout<< "                   tR=" << tR << " extProd:" << extProd <<	std::endl;
 
 	return CLHEP::Hep3Vector(getSensorThick(diskID),y,z);
 }
@@ -1092,8 +1094,7 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 			<< std::endl;
 		exit(-1);
 	}
-//std::cout << "+++++++++++++" <<std::endl;
-//std::cout << "   Posz=" << posZ << " Sensor: " << sensorID <<std::endl;
+	
 	// Extract zPos position in the local rotated frame (if proceed)
 	const double zPosPrime = transformPointToRotatedLocal( diskID,
 			sensorID, CLHEP::Hep3Vector(0.0,0.0,posZ) ).getZ();
