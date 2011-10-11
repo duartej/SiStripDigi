@@ -139,7 +139,11 @@ class SiStripGeomFTD: public SiStripGeom
 		//! The vector is defined to describe the strip from z_local=0
 		virtual CLHEP::Hep3Vector getStripUnitVector(const int & diskID, 
 				const int & sensorID, const int & stripID) const;
-
+		
+		//! Get the point which crosses two strips
+		virtual CLHEP::Hep3Vector getCrossLinePoint(const int & diskID, 
+				const int & sensorID,
+				const int & stripIDFront, const int & stripIDRear) const;
 		
 		// OTHER METHODS - IDENTIFYING
 		//! Get strip ID (in Phi), points are given in local ref. system; strips are

@@ -890,6 +890,30 @@ CLHEP::Hep3Vector SiStripGeomFTD::getStripUnitVector(const int & diskID, const i
 }
 
 //
+// Get the point crossing two strips (returning in the middle of the sensor)
+//
+CLHEP::Hep3Vector SiStripGeomFTD::getCrossLinePoint(const int & diskID, const int & sensorID,
+		const int & stripIDFront, const int & stripIDRear) const
+{
+	// Extract y in z=0 in front and rear
+	const double yatz0Front = getStripPosY(diskID,sensorID,stripIDFront,0.0);
+	const double yatz0Rear = getStripPosY(diskID,sensorID,stripIDRear,0.0);
+
+	// Director vectors of the strips
+	CLHEP::Hep3Vector uFront = getStripUnitVector(diskID,1,stripIDFront);
+	CLHEP::Hep3Vector uRear  = getStripUnitVector(diskID,1,stripIDRear);
+	
+	// Strip line parametrized with t => r = (yatz0,0)+t(uz,uy)
+	const double extProd = uFront.getY()*uRear.getZ()-uFront.getZ()*uRear.getY();
+	const double tR = (yatz0Rear-yatz0Front)*uFront.getZ()/extProd;
+
+	const double y = yatz0Rear+tR*uRear.getY();
+	const double z = tR*uRear.getZ();
+
+	return CLHEP::Hep3Vector(getSensorThick(diskID),y,z);
+}
+
+//
 // Get the stereo angle given a sensor
 // 
 double SiStripGeomFTD::getStereoAngle(const int & diskID, const int & sensorID) const

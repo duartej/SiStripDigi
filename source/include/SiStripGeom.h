@@ -254,6 +254,11 @@ class SiStripGeom
 		//! The vector is defined to describe the strip from z_local=0
 		virtual CLHEP::Hep3Vector getStripUnitVector(const int & diskID, 
 				const int & sensorID, const int & stripID) const = 0;
+		
+		//! Get the point which crossed two strips
+		virtual CLHEP::Hep3Vector getCrossLinePoint(const int & diskID, 
+				const int & sensorID, 
+				const int & stripIDFront, const int & stripIDRear) const = 0;
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters

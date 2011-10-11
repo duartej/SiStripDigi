@@ -442,12 +442,15 @@ void SiStripClus::end()
 //
 // Method searching for clusters
 //
+typedef std::pair<int,StripCluster*> StripClusterPair;
+typedef std::map<int,std::map<StripType,std::vector<StripClusterPair> > > SensorStripClusterMap;
+
 ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 {
 	ClsVec clsVec;
 	
 	// Cluster vectors - 
-	std::map<int,std::map<StripType,ClsVec> > clsvectFrontRear; 
+	SensorStripClusterMap clsvectFrontRear; 
 	
 	std::vector<StripType> stv;
 	stv.push_back(STRIPFRONT);
@@ -466,6 +469,12 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 	for(SensorStripMap::iterator iterSMap = sensorMap.begin(); iterSMap!=sensorMap.end();
 			++iterSMap)
 	{
+	     // Save layer ID , ...
+	     const int cellID = iterSMap->first;
+	     std::map<std::string,int> bfmap = _geometry->decodeCellID(cellID);
+	     const int layerID = bfmap["layer"];
+	     const int ladderID= bfmap["module"];
+
              // Storing the two types of clusters
 	     for(std::vector<StripType>::iterator itST = stv.begin(); itST!= stv.end();
 			     ++itST)
@@ -474,11 +483,6 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 		   for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPTYPE].begin(); 
 				     iterChMap!=iterSMap->second[STRIPTYPE].end(); iterChMap++) 
 		   {
-			// Save layer ID , ...
-			int cellID = iterSMap->first;
-			std::map<std::string,int> bfmap = _geometry->decodeCellID(cellID);
-			const int layerID = bfmap["layer"];
-			const int ladderID= bfmap["module"];
 			const int sensorID= stSensorIDmap[STRIPTYPE];
 			
 			// Begin algorithm
@@ -537,11 +541,12 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			
 			double qIntermSignal = 0.0;
 			
+			int stripID = 0;
 			for(StripChargeMap::iterator iterChMap2=clsStrips.begin(); 
 					iterChMap2!=clsStrips.end(); iterChMap2++) 
 			{
 			    // Current strip ID, posZ & charge
-			    const int stripID        = iterChMap2->first;
+			    stripID        = iterChMap2->first;
 			    const double stripPosYatz0= _geometry->getStripPosY(layerID, 
 					    sensorID,stripID,0.0);
 //			    const CLHEP::Hep3Vector stripVector = 
@@ -658,7 +663,8 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 				   clsCharge, clsSize );
 			      pCluster->updateSimHitMap(clsSimHitMap);
 			      
-			      clsvectFrontRear[cellID][STRIPTYPE].push_back(pCluster);
+			      clsvectFrontRear[cellID][STRIPTYPE].push_back(
+					      std::pair<int,StripCluster*>(stripID,pCluster));
 			}
 			
 			// Release memory
@@ -673,20 +679,75 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			
 		   } // For clusters type
 	     }  
+	}
+	
+	
+	// Stores the hit (using the STRIPFRONT as init)
+	for(SensorStripClusterMap::iterator it = clsvectFrontRear.begin();
+			it != clsvectFrontRear.end(); ++it)
+	{
+		const int cellID = it->first;
+		std::map<std::string,int> bfmap = _geometry->decodeCellID(cellID);
+		const int layerID = bfmap["layer"];
+		const int ladderID= bfmap["module"];
 		
+		// the front sensors
+		for(std::vector<StripClusterPair>::iterator 
+				itFront = it->second[STRIPFRONT].begin();
+				itFront != it->second[STRIPFRONT].end(); ++itFront)
+		{
+			const int stripIDFront = itFront->first;     
+			// Extracting the points in the edges
+			const double yatz0Front = _geometry->getStripPosY(layerID,1,
+					stripIDFront,0.0);
+			const double yatzLFront = _geometry->getStripPosY(layerID,1,
+					stripIDFront,_geometry->getSensorLength(layerID));
+			
+			// Checking with the Rear sensors
+			for(std::vector<StripClusterPair>::iterator 
+					itRear = it->second[STRIPREAR].begin();
+					itRear != it->second[STRIPREAR].end(); ++itRear)
+			{
+			      const int stripIDRear = itRear->first;
+			      // Extracting the points in the edges
+			      const double yatz0Rear = _geometry->getStripPosY(layerID,3,
+					      stripIDRear,0.0);
+			      const double yatzLRear = _geometry->getStripPosY(layerID,3,
+					      stripIDRear,_geometry->getSensorLength(layerID));
 
-	     // Stores the hit (using the STRIPFRONT as init)
-	     for(std::map<int,std::map<StripType,ClsVec> >::iterator it = clsvectFrontRear.begin();
-			     it != clsvectFrontRear.end(); ++it)
-	     {
-		     for(ClsVec::iterator itV = it->second[STRIPFRONT].begin();
-					itV != itSV->second[STRIPFRONT].end(); ++itV)
-		     {
-		     }
-	     }
+			      // If not crossing  continue
+			      if( (yatz0Front-yatz0Rear)*(yatzLFront-yatzLRear) > 0.)
+			      {
+				      continue;
+			      }
 
+			      // There are intersection, so store the Hit
+			      // Cluster in front, extracting the unitary vector which
+			      // defines the strip in the local ref. system
+			      StripCluster * pclusterFront = itFront->second;
+			      // Cluster in front, extracting the unitary vector which
+			      // defines the strip in the local ref. system		      
+			      StripCluster * pclusterRear  = itRear->second;
 
-                  Hep3Vector position( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosY()     , pClusterZ->getPosZ());
+			      // Get the intersection point
+			      Hep3Vector position = _geometry->getCrossLinePoint(layerID,
+					      ladderID,stripIDFront,stripIDRear);
+
+			      double totalCharge = ( pclusterFront->getCharge() +
+					      pclusterRear->getCharge())/2.0;
+			      std::cout << "CELLID:" << cellID <<" INTERSECTAN!! Front:" 
+				      << stripIDFront << " REAR:"
+				      << stripIDRear << "  en el disco " << layerID 
+				      << " petal " << ladderID 
+				      << " Carga total: " << totalCharge 
+				      << "Punto del hit: " << position << std::endl;
+			      ---> FALLA ALGO, la z es incorrecta!!
+
+			} // for rear sensors
+		}  // for front sensors
+	}
+	
+	/*                  Hep3Vector position( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosY()     , pClusterZ->getPosZ());
                   Hep3Vector posSigma( _geometry->getSensorThick(layerID)/2., pClusterRPhi->getPosSigmaY(), pClusterZ->getPosSigmaZ());
 
                   double     totalCharge = (pClusterRPhi->getCharge() + pClusterZ->getCharge() )/2.;
@@ -808,7 +869,7 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 					<< (*itV)->getCharge() << std::endl;
 			}
 		}
-	}
+	}*/
 
 			//-- Right neighbours
 /*			adjCharge = 0.0;
