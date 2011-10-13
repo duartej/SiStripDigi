@@ -19,7 +19,7 @@ namespace sistrip
 {
 
 // Define constants
-#define EPS 6           // in micrometers -- FIXME: Cambiado de 5 a 6 PROV
+#define EPS 5           // in micrometers -- FIXME: Cambiado de 5 a 9 PROV
 #define LAYERCOD   1000 // Const to encode and decode layers==disk
 #define LADDERCOD    10 // Const to encode and decode ladders==petal
 #define SENSORCOD     1 // Const to encode and decode sensors
