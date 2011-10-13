@@ -208,7 +208,7 @@ void SiStripGeomFTD::updateCanonicalCellID(const int & cellID, const int & strip
 
 	(*cellEnc)["side"]=abs(realLayer)/realLayer;
 	(*cellEnc)["layer"]=abs(realLayer);
-	(*cellEnc)["module"]=module+1;
+	(*cellEnc)["module"]=module+1;  // Note that we want to keep the geant4 style
 	(*cellEnc)["sensor"]=sensor;
 	(*cellEnc)["stripType"]=stripType;
 	(*cellEnc)["stripID"]=stripID;	
@@ -882,10 +882,10 @@ CLHEP::Hep3Vector SiStripGeomFTD::getStripUnitVector(const int & diskID, const i
 	const double Dy = yatzL-yatz0;
 	const int u_sign = fabs(Dy)/Dy;
 
-	const double alpha = atan(Dy/getSensorLength(diskID));
+	const double alpha = fabs(atan(Dy/getSensorLength(diskID)));
 	//FIXME: Control that alpha<pi/2
 
-	return CLHEP::Hep3Vector(0.0,u_sign*sin(alpha),cos(alpha));
+	return CLHEP::Hep3Vector(0.0,((double)u_sign)*sin(alpha),cos(alpha));
 }
 
 //
@@ -988,11 +988,12 @@ int SiStripGeomFTD::getStripID(const int & diskID, const int & sensorID,
 			<< std::endl;
 		exit(-1);
 	}
+
 /*std::cout << "-----+ SiStripGeomFTD::getStripID" << std::endl;
-//std::cout << "----> Y   =" << posRPhi << " (y/Pitch):" << (posRPhi-yorigen)/sensPitch << std::endl;
+std::cout << "----> Y   =" << posRPhi << " (y/Pitch):" << (posRPhi-yorigen)/sensPitch << std::endl;
 std::cout << "----> YRot =" << posRPhiRot << " (y/Pitch):" << (posRPhiRot-yorigen)/sensPitch << std::endl;
 std::cout << "----> Pitch=" << sensPitch << std::endl;
-//std::cout << "----> Number Strips:" << sensNStrips << std::endl;
+std::cout << "----> Number Strips:" << sensNStrips << std::endl;
 std::cout << "----> StripID:" << stripID << std::endl;
 std::cout <<  "----> yOrigenRot:" << yorigen << std::endl;
 std::cout <<  "----> zRot:" << zRot << std::endl;
@@ -1089,7 +1090,7 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 	// Can't be stripID = 0
 	if(stripID <= 0)
 	{
-		streamlog_out(ERROR) << "SoStripGeomFTD::getStripPos "
+		streamlog_out(ERROR) << "SoStripGeomFTD::getStripPosY "
 			<< "- incoherent stripID=" << stripID << "!!" 
 			<< std::endl;
 		exit(-1);
@@ -1106,7 +1107,7 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 	double sensPitch = getSensorPitch(diskID,sensorID,posZ);
 	if(sensPitch < 1e-40) 
 	{
-		streamlog_out(ERROR) << "SiStripGeomFTD::getStripPos " 
+		streamlog_out(ERROR) << "SiStripGeomFTD::getStripPosY " 
 			<< "- division by zero (sensPitch is zero)!!!"
 			<< std::endl;
 		exit(-1);
@@ -1118,7 +1119,7 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(diskID)) ) 
 	{
 		streamlog_out(ERROR) 
-			<< "SiStripGeom::getStripPos - position out of sensor!!!"
+			<< "SiStripGeomFTD::getStripPosY - position out of sensor!!!"
 			<< std::endl;
 		exit(-1);
 	}

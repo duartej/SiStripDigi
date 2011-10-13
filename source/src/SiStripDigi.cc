@@ -288,6 +288,23 @@ void SiStripDigi::processEvent(LCEvent * event)
 	_rootDepEDigi = 0.;
 #endif
 
+// 
+std::cout << "************STRIPS****************" << std::endl;
+std::cout << " DISCO 4---" << std::endl;
+int nStrips = _geometry->getSensorNStrips(2,3);
+//double pitch= _geometry->getSensorPitch(2,1,0.0);
+//double tanPh= tan(_geometry->getLayerHalfPhi(2));
+//double yorig= _geometry->getSensorLength(2)*tanPh;
+for(int i=1;i < nStrips;++i)
+{
+CLHEP::Hep3Vector p0 = _geometry->transformPointToGlobal(2,4,3,CLHEP::Hep3Vector(0.01,_geometry->getStripPosY(2,3,i,0.0),0.0));
+CLHEP::Hep3Vector p1 = _geometry->transformPointToGlobal(2,4,3,CLHEP::Hep3Vector(0.01,_geometry->getStripPosY(2,3,i,_geometry->getSensorLength(2)),_geometry->getSensorLength(2)));
+
+std::cout << "Strip:" << i<< " --- x0=" << p0.getX() << " y0=" << p0.getY() << " z0=" << p0.getZ() << std::endl;
+std::cout << "--- " << i<< " --- xL=" << p1.getX() << " yL=" << p1.getY() << " zL=" << p1.getZ() << std::endl;
+}
+exit(0);
+
 	//
 	// Get SimTrackerHit collection
 	LCCollection * colOfSimHits = 0;
@@ -426,14 +443,7 @@ void SiStripDigi::processEvent(LCEvent * event)
 			{
 				continue;
 			}
-/*std::cout << "EN___DIGI___" << std::endl;		
-std::cout<< "layer:" << cellIDmap["layer"] <<
-		" subdetector:" << cellIDmap["subdet"] <<
-		" side: "  << cellIDmap["side"] <<
-		" module: " << cellIDmap["module"]<<
-		" sensor: " << cellIDmap["sensor"] << std::endl;*/
 			int hitCellID =  cellIDDec(simHit).lowWord();
-			//int hitCellID =  _geometry->encodeCellID(hitLayerID, hitLadderID, hitSensorID);
 
 			// MC information
 			MCParticle * mcPart = simHit->getMCParticle();
@@ -505,19 +515,34 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 		stripTypesvect.push_back(STRIPFRONT);
 		stripTypesvect.push_back(STRIPREAR);
 
-#ifdef ROOT_OUTPUT_LAND
-/*		for(SensorStripMap::iterator itSM = sensorMap.begin(); itSM != sensorMap.end();
+/*#ifdef ROOT_OUTPUT_LAND
+		for(SensorStripMap::iterator itSM = sensorMap.begin(); itSM != sensorMap.end();
 				++itSM)
 		{
 			const int cellID = itSM->first;
-			std::cout << "-|| cellID: " << cellID << std::endl;
+			std::map<std::string,int> bfM = _geometry->decodeCellID(cellID);
+			const int diskID=bfM["layer"];
+			const int petalID=bfM["module"];
+			const int sensorID=bfM["sensor"];
+			std::cout << "-|| cellID: " << cellID 
+				<< " (layer:" << diskID << ", petal:"<< petalID 
+				<< ", sensor:"<< sensorID << ")" << std::endl;
 			for(std::vector<StripType>::iterator stT = stripTypesvect.begin();
 					stT != stripTypesvect.end(); ++stT)
 			{
 				for(StripChargeMap::iterator itSC = itSM->second[*stT].begin();
 						itSC != itSM->second[*stT].end(); ++itSC)
 				{
-					std::cout << " |-|- stripID: " <<  itSC->first << std::endl;
+					const double ylocal =_geometry->getStripPosY(diskID,sensorID,itSC->first,0.0);
+					const CLHEP::Hep3Vector PosGlobal0 = _geometry->transformPointToGlobal(diskID,petalID,sensorID,CLHEP::Hep3Vector(0.00,ylocal,0.0));
+					const CLHEP::Hep3Vector unitV = _geometry->getStripUnitVector(diskID,sensorID,itSC->first);
+					const double alpha = fabs(acos(unitV.getZ()));
+					const double ylocalL = ylocal+tan(alpha)*_geometry->getSensorLength(diskID);
+							
+					const CLHEP::Hep3Vector PosGlobal1 = _geometry->transformPointToGlobal(diskID,petalID,sensorID,CLHEP::Hep3Vector(0.00,ylocalL,_geometry->getSensorLength(diskID)));
+					std::cout << " |-|- stripID: " <<  itSC->first 
+						<< " -- Position (at zlocal=0):" << PosGlobal0
+						<< "  (at z=L:" << PosGlobal1 << ")" << std::endl;
 					std::cout << "   |--- Total integrated charge: " <<  itSC->second->getCharge()/fC 
 						<< " fC (" << itSC->second->getCharge() << ")"  << std::endl;
 					std::cout << "   |--- Time                   : " <<  itSC->second->getTime() 
@@ -543,8 +568,8 @@ std::cout<< "layer:" << cellIDmap["layer"] <<
 				}
 			}
 			std::cout << std::endl;
-		}*/
-#endif
+		}
+#endif*/
 		
 		//
 		// Create new collection (TrackerPulses + relations) from obtained results
@@ -833,15 +858,6 @@ void SiStripDigi::digitize(const SimTrackerDigiHit * simDigiHit, SensorStripMap 
 		double sensorPitch = _geometry->getSensorPitch( _currentLayerID,
 				_currentSensorID, cluster->getPosZ());
 
-/*std::cout << "======================================== New Cluster"  << std::endl;
-std::cout << "ID min: " << iMinStrip << "  ID max: " << iMaxStrip << " (Pitch[um]:" 
-<< sensorPitch/um << ")\n\t cluster y(min,mean,max)[um]:" 
-<< (cluster->getPosY()-3.0*diffSigma) << ", " << cluster->getPosY() << "," 
-<< (cluster->getPosY()+3.0*diffSigma) << ", SensorID:" << _currentSensorID << " Tipo Strip:" 
-<< stripType << " Charge collect before repartir: " << chargeCollect<< std::endl;
-std::cout << "Y mean stereo frame " << 
-_geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::Hep3Vector(0.,cluster->getPosY(),cluster->getPosZ())).getY() << std::endl; */
-
 		// The calculus for the strips must be done in the (rotated by the
 		// stereo angle) local frame
 		const double tanPhi = tan(_geometry->getLayerHalfPhi(_currentLayerID));
@@ -871,7 +887,6 @@ _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::
 		//  Strip signal
 		Signal * signal = 0;
 		
-//std::cout << "---- Entrando loop del calculo de senyal por strip " << std::endl;
 		//  Calculate signal at each strip and save
 		for(int i=iMinStrip; i<=iMaxStrip; ++i) 
 		{
@@ -883,14 +898,6 @@ _geometry->transformPointToRotatedLocal(_currentLayerID,_currentSensorID,CLHEP::
 			
 			// Integration result
 			charge = (primAtB - primAtA) * chargeCollect;
-////std::cout << " y-position strip " << i << ": " << (yorigenRot+i*sensorPitch) 
-////	<< " y-position strip " << i+1 << ": " << (yorigenRot+(i+1)*sensorPitch) << std::endl;
-////std::cout << " y-origen (Primer strip situado en): " << yorigenRot << std::endl;
-////std::cout << " z-position: " << zRot << std::endl;
-//std::cout << "         Charge deposited in Strip-" << i << ": "  << charge << std::endl;
-////std::cout << " Window Position of the charge y[um]:" << (cluster->getPosY()-3.0*diffSigma) 
-////	<< ", " << cluster->getPosY() << "," << (cluster->getPosY()+3.0*diffSigma) 
-////	<< std::endl;
 			
 			// New integration starting point
 			primAtA = primAtB;

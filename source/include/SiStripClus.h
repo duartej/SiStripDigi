@@ -162,6 +162,10 @@ class SiStripClus : public Processor
 		double _rootRecRPhi;                   //!< Reconstructed hit position in R-Phi
 		double _rootClsSizeRPhi;               //!< Cluster size in R-Phi
 		int    _rootMCPDGRPhi;                 //!< PDG of particle which created current hit in R-Phi (MC Particle with highest weight)
+
+		// Residuals
+		double _rootResRPhi;                   //!< Residual RPhi
+		double _rootResZ; 		       //!< Residual Z
 		
 		// In Z
 		double _rootSimZ;                      //!< Simulated hit position in Z (SimTrackerHit with heighest weight taken)

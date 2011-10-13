@@ -194,6 +194,8 @@ void SiStripClus::init()
    _rootTree->Branch("Sensor"     ,&_rootSensorID    ,"Sensor/I"     );
    _rootTree->Branch("RPhiSim"    ,&_rootSimRPhi     ,"SimRPhi/D"    );
    _rootTree->Branch("RPhiRec"    ,&_rootRecRPhi     ,"RecRPhi/D"    );
+   _rootTree->Branch("ResRPhi"    ,&_rootResRPhi     ,"ResRPhi/D"    );
+   _rootTree->Branch("ResZ"       ,&_rootResZ        ,"ResZ/D"    );
    _rootTree->Branch("RPhiClsSize",&_rootClsSizeRPhi ,"ClsSizeRPhi/D");
    _rootTree->Branch("RPhiMCPDG"  ,&_rootMCPDGRPhi   ,"MCPDGRPhi/I"  );
    _rootTree->Branch("ZSim"       ,&_rootSimZ        ,"SimZ/D"       );
@@ -549,10 +551,6 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			    const double stripPosYatz0= _geometry->getStripPosY(layerID, 
 					    sensorID,stripID,0.0);
 
-std::cout << " stripPosYatZ0:" << _geometry->transformPointToGlobal(layerID,ladderID,
-		sensorID,CLHEP::Hep3Vector(0.0,stripPosYatz0,0.0)) << std::endl;exit(0);
-
-			    
 			    const double stripCharge = iterChMap2->second->getCharge();
 			    
 			    // Update info about MC particles which contributed
@@ -722,9 +720,9 @@ std::cout << " stripPosYatZ0:" << _geometry->transformPointToGlobal(layerID,ladd
 			      {
 				      continue;
 			      }
-			 std::cout << "y0Front= " << yatz0Front << " y0Rear=" << yatz0Rear
+/*			 std::cout << "y0Front= " << yatz0Front << " y0Rear=" << yatz0Rear
 				 << " --  yLFront=" << yatzLFront<< " yLFront=" << yatzLRear
-				 << std::endl;
+				 << std::endl;*/
 
 			      // There are intersection, so store the Hit
 			      // Cluster in front, extracting the unitary vector which
@@ -735,7 +733,7 @@ std::cout << " stripPosYatZ0:" << _geometry->transformPointToGlobal(layerID,ladd
 			      StripCluster * pclusterRear  = itRear->second;
 
 			      // Get the intersection point
-			      Hep3Vector position = _geometry->getCrossLinePoint(layerID,
+			      CLHEP::Hep3Vector position=_geometry->getCrossLinePoint(layerID,
 					      ladderID,stripIDFront,stripIDRear);
 
 			      // FIXME: Sigma calculation!??
@@ -756,14 +754,14 @@ std::cout << " stripPosYatZ0:" << _geometry->transformPointToGlobal(layerID,ladd
 					      1, position, posSigma, totalCharge, 0);
 			      
 
-/*std::cout << "CELLID:" << cellID <<" INTERSECTAN!!"<<std::endl;
+std::cout << "CELLID:" << cellID <<" INTERSECTAN!!"<<std::endl;
 std::cout << "   Disco: " << layerID << " petal: " << ladderID << std::endl;
 std::cout << "      ----- Front:: StripID:"   << stripIDFront << " (Strip Media:"
 	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<< std::endl;
 std::cout << "      ----- Rear:: StripID:"   << stripIDRear << " (Strip Media:" 
 	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<<std::endl;
 std::cout << "******HIT:  Carga total: " << totalCharge 
-	<< "Punto del hit: " << position << std::endl;*/
+	<< "Punto del hit: " << position << std::endl;
 			      
 			      // Update MC true info for 3Dp
 			      SimTrackerHitMap cls3DSimHitMap = pclusterFront->getSimHitMap();
@@ -876,7 +874,7 @@ std::cout << "******HIT:  Carga total: " << totalCharge
 		}  // for front sensors
 	} // For cluster strip vector pairs
 	
-	for(SensorStripClusterMap::iterator it = clsvectFrontRear.begin(); 
+/*	for(SensorStripClusterMap::iterator it = clsvectFrontRear.begin(); 
 			it != clsvectFrontRear.end(); ++it)
 	{
 		std::cout << "========================================== " << std::endl;
@@ -896,6 +894,7 @@ std::cout << "******HIT:  Carga total: " << totalCharge
 			}
 		}
 	}
+	*/
 
 	// Release memory
 	for(SensorStripClusterMap::iterator it = clsvectFrontRear.begin();
