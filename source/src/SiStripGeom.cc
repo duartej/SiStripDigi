@@ -432,7 +432,7 @@ double SiStripGeom::getSensorThick(short int layerID) const
 //
 // Get sensor width
 //
-double SiStripGeom::getSensorWidth(short int layerID) const
+double SiStripGeom::getSensorWidthMax(short int layerID) const
 {
 	if(_sensorWidth.size()>(unsigned short int)layerID)
 	{
@@ -449,7 +449,7 @@ double SiStripGeom::getSensorWidth(short int layerID) const
 //
 // Get sensor width2
 //
-double SiStripGeom::getSensorWidth2(short int layerID) const
+double SiStripGeom::getSensorWidthMin(short int layerID) const
 {
 	if(_sensorWidth2.size()>(unsigned short int)layerID)
 	{
@@ -457,7 +457,7 @@ double SiStripGeom::getSensorWidth2(short int layerID) const
 	}
 	else
 	{
-		return getSensorWidth(layerID);
+		return getSensorWidthMax(layerID);
 	}
 }
 

@@ -288,23 +288,6 @@ void SiStripDigi::processEvent(LCEvent * event)
 	_rootDepEDigi = 0.;
 #endif
 
-// 
-std::cout << "************STRIPS****************" << std::endl;
-std::cout << " DISCO 4---" << std::endl;
-int nStrips = _geometry->getSensorNStrips(2,3);
-//double pitch= _geometry->getSensorPitch(2,1,0.0);
-//double tanPh= tan(_geometry->getLayerHalfPhi(2));
-//double yorig= _geometry->getSensorLength(2)*tanPh;
-for(int i=1;i < nStrips;++i)
-{
-CLHEP::Hep3Vector p0 = _geometry->transformPointToGlobal(2,4,3,CLHEP::Hep3Vector(0.01,_geometry->getStripPosY(2,3,i,0.0),0.0));
-CLHEP::Hep3Vector p1 = _geometry->transformPointToGlobal(2,4,3,CLHEP::Hep3Vector(0.01,_geometry->getStripPosY(2,3,i,_geometry->getSensorLength(2)),_geometry->getSensorLength(2)));
-
-std::cout << "Strip:" << i<< " --- x0=" << p0.getX() << " y0=" << p0.getY() << " z0=" << p0.getZ() << std::endl;
-std::cout << "--- " << i<< " --- xL=" << p1.getX() << " yL=" << p1.getY() << " zL=" << p1.getZ() << std::endl;
-}
-exit(0);
-
 	//
 	// Get SimTrackerHit collection
 	LCCollection * colOfSimHits = 0;

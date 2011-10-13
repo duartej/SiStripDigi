@@ -514,7 +514,6 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			StripChargeMap::iterator seedIt=iterSMap->second[STRIPTYPE].find(seedStrip); 
 			// Second: search for left neighbours
 			//-- Left neighbours
-std::cout <<" ************* LEFT "  << " SEED ID: " << seedIt->first <<std::endl;
 			StripChargeMap::reverse_iterator lschMap(seedIt);
 			clsStrips = storeHitsAdjacents<StripChargeMap::reverse_iterator>(
 					clsStrips, lschMap, iterSMap->second[STRIPTYPE].rend(),
@@ -522,7 +521,6 @@ std::cout <<" ************* LEFT "  << " SEED ID: " << seedIt->first <<std::endl
 
 			// Third: search for rigth neighbours
 			//-- Right neighbours
-std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			StripChargeMap::iterator rschMap(++seedIt);
 			clsStrips = storeHitsAdjacents<StripChargeMap::iterator>(clsStrips, 
 					rschMap, iterSMap->second[STRIPTYPE].end(),
@@ -709,20 +707,20 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 					itRear != it->second[STRIPREAR].end(); ++itRear)
 			{
 			      const int stripIDRear = itRear->first;
-			      // Extracting the points in the edges
-			      const double yatz0Rear = _geometry->getStripPosY(layerID,3,
-					      stripIDRear,0.0);
-			      const double yatzLRear = _geometry->getStripPosY(layerID,3,
-					      stripIDRear,_geometry->getSensorLength(layerID));
-
+			      // Extracting the points in the edges and put them in a common
+			      // reference system (Front petal local ref., remember the y=0
+			      // of one system is SensorWidthMax distance from the other)
+			      const double yatz0Rear = _geometry->getSensorWidthMax(layerID)-
+				      _geometry->getStripPosY(layerID,3,stripIDRear,0.0);
+			      const double yatzLRear = _geometry->getSensorWidthMax(layerID)-
+				      _geometry->getStripPosY(layerID,3,stripIDRear,
+						      _geometry->getSensorLength(layerID));
+			      
 			      // If not crossing  continue
 			      if( (yatz0Front-yatz0Rear)*(yatzLFront-yatzLRear) > 0.)
 			      {
 				      continue;
 			      }
-/*			 std::cout << "y0Front= " << yatz0Front << " y0Rear=" << yatz0Rear
-				 << " --  yLFront=" << yatzLFront<< " yLFront=" << yatzLRear
-				 << std::endl;*/
 
 			      // There are intersection, so store the Hit
 			      // Cluster in front, extracting the unitary vector which
@@ -752,16 +750,6 @@ std::cout <<" ************* RIGHT " << " SEED ID: " << seedIt->first<<std::endl;
 			      // Always postiioned as it was in the front
 			      StripCluster * pCluster3D = new StripCluster( layerID, ladderID,
 					      1, position, posSigma, totalCharge, 0);
-			      
-
-std::cout << "CELLID:" << cellID <<" INTERSECTAN!!"<<std::endl;
-std::cout << "   Disco: " << layerID << " petal: " << ladderID << std::endl;
-std::cout << "      ----- Front:: StripID:"   << stripIDFront << " (Strip Media:"
-	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<< std::endl;
-std::cout << "      ----- Rear:: StripID:"   << stripIDRear << " (Strip Media:" 
-	<<_geometry->getSensorNStrips(layerID,ladderID)/2 << ")"<<std::endl;
-std::cout << "******HIT:  Carga total: " << totalCharge 
-	<< "Punto del hit: " << position << std::endl;
 			      
 			      // Update MC true info for 3Dp
 			      SimTrackerHitMap cls3DSimHitMap = pclusterFront->getSimHitMap();
@@ -1589,8 +1577,6 @@ StripChargeMap & SiStripClus::storeHitsAdjacents( StripChargeMap & clsStrips,
 	{
 		adjCharge = schMap->second->getCharge();
 		const SimTrackerHitMap & adjSimHitMap = schMap->second->getSimHitMap();
-std::cout << "  Strip: " << schMap->first<< " -- carga:" << adjCharge << " (threshold:" <<
-_SNadjacent*_CMSnoise<< ") " ;
 		// Charge higher than threshold set
 		if( adjCharge >= (_SNadjacent*_CMSnoise) ) 
 		{
@@ -1601,12 +1587,10 @@ _SNadjacent*_CMSnoise<< ") " ;
 			currentMap[schMap->first]->setCharge(0.);
 			// And go on to the next strip
 			++schMap;
-std::cout << " ---- OK!!" << std::endl;
 		}
 		else  // Charge lower - stop searching
 		{
 			goNextStrip = false;
-std::cout << "  NOT STORED" << std::endl;
 		}
 	}
 
@@ -1963,7 +1947,7 @@ void SiStripClus::printHitInfo(const StripCluster * pCluster) const
    streamlog_out(MESSAGE2) << "    Layer "
                            << _geometry->getLayerRealID(layerID)   << " "
                            << "Ladder "
-                           << ladderID+1                           << " "
+                           << ladderID                             << " "
                            << "Sensor "
                            << sensorID                             << std::endl;
    streamlog_out(MESSAGE2) << "     Hit in local ref. system: "

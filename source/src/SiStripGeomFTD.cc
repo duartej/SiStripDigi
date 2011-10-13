@@ -763,13 +763,13 @@ bool SiStripGeomFTD::isPointOutOfSensor(short int layerID, const CLHEP::Hep3Vect
 	bool isOut = false;
 	
 	// Boundary set +- epsilon
-	// Forward-type sensors
-	double tanAlpha          = (getSensorWidth(layerID) - getSensorWidth2(layerID))/2./getSensorLength(layerID);
-     	double actualSensorWidth = (getSensorWidth(layerID) - 2*tanAlpha*point.getZ());
+	double tanAlpha          = (getSensorWidthMax(layerID) - getSensorWidthMin(layerID))
+		/2./getSensorLength(layerID);
+     	double actualSensorWidth = (getSensorWidthMax(layerID) - 2*tanAlpha*point.getZ());
       
         // Recalculate point into "local" local system (width depends on posZ)
     	CLHEP::Hep3Vector recalcPoint(point.getX(), point.getY() - 
-    	  	      getSensorWidth(layerID)/2. + actualSensorWidth/2., point.getZ());
+    	  	      getSensorWidthMax(layerID)/2. + actualSensorWidth/2., point.getZ());
     	
     	if( (recalcPoint.getX() > (getSensorThick(layerID) +EPS*um)) || 
     	  	      (recalcPoint.getX() < (-EPS*um)) ||
@@ -925,7 +925,7 @@ double SiStripGeomFTD::getStereoAngle(const int & diskID, const int & sensorID) 
 	
 	if(sensorID == 3 || sensorID == 4)
 	{
-		stAngle = 5e-3;
+		stAngle = 50e-3;
 	}
 
 	return stAngle;
@@ -1070,12 +1070,7 @@ double SiStripGeomFTD::getSensorPitch(const int & diskID, const int & sensorID,
 	// Now we can deal the petal in the usual way. 
 	const double width_z = 2.0*(getSensorLength(diskID)-point.getZ())*tanPhi;
 		
-	// Note: to avoid incoherences
-	double totalwidth = getSensorWidth2(diskID);
-	if(getSensorWidth(diskID) > totalwidth)
-	{
-		totalwidth = getSensorWidth(diskID);
-	}
+	double totalwidth = getSensorWidthMax(diskID);
 
 	return ((totalwidth-width_z)/getSensorNStrips(diskID,sensorID));
 }
@@ -1116,7 +1111,7 @@ double SiStripGeomFTD::getStripPosY(const int & diskID, const int & sensorID,
 	// Calculate position (Center of the strip)
 	double posRPhi = yorigen+sensPitch*(stripID + 0.5);
 	// Error
-	if ( (posRPhi<0.) || (posRPhi>getSensorWidth(diskID)) ) 
+	if ( (posRPhi<0.) || (posRPhi>getSensorWidthMax(diskID)) ) 
 	{
 		streamlog_out(ERROR) 
 			<< "SiStripGeomFTD::getStripPosY - position out of sensor!!!"
@@ -1145,11 +1140,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToRotatedLocal(const int & diskI
 
 	// Changing reference system: rotate the petal in its centroid point
 	// to obtain the strips with the stereo angle
-	double ycentre = getSensorWidth2(diskID)/2.0;
-	if(getSensorWidth(diskID)/2.0 > ycentre)
-	{
-		ycentre = getSensorWidth(diskID)/2.0;
-	}
+	double ycentre = getSensorWidthMax(diskID)/2.0;
 	const double zcentre = getSensorLength(diskID)/2.0;
 
 	// The centre of the rotation
@@ -1188,11 +1179,7 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointFromRotatedLocal(const int & dis
 	const double stAngle = getStereoAngle(diskID,sensorID);
 	
 	// center of the petal
-	double ycentre = getSensorWidth2(diskID)/2.0;
-	if(getSensorWidth(diskID)/2.0 > ycentre)
-	{
-		ycentre = getSensorWidth(diskID)/2.0;
-	}
+	double ycentre = getSensorWidthMax(diskID)/2.0;
 	const double zcentre = getSensorLength(diskID)/2.0;
 
 	CLHEP::Hep3Vector rotcentre(0.0,ycentre,zcentre);

@@ -165,9 +165,9 @@ class SiStripGeom
 		//!Get sensor thickness
 		virtual double getSensorThick(short int layerID) const;
 		//!Get sensor width (the wider one for forward-type sensors)
-		virtual double getSensorWidth(short int layerID) const;
+		virtual double getSensorWidthMax(short int layerID) const;
 		//!Get sensor width 2 (the narrower one for forward-type sensors)
-		virtual double getSensorWidth2(short int layerID) const;
+		virtual double getSensorWidthMin(short int layerID) const;
 		//!Get sensor length
 		virtual double getSensorLength(short int layerID) const;
 		
