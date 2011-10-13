@@ -208,7 +208,7 @@ void SiStripGeomFTD::updateCanonicalCellID(const int & cellID, const int & strip
 
 	(*cellEnc)["side"]=abs(realLayer)/realLayer;
 	(*cellEnc)["layer"]=abs(realLayer);
-	(*cellEnc)["module"]=module;
+	(*cellEnc)["module"]=module+1;
 	(*cellEnc)["sensor"]=sensor;
 	(*cellEnc)["stripType"]=stripType;
 	(*cellEnc)["stripID"]=stripID;	
