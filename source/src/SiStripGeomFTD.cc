@@ -574,11 +574,11 @@ CLHEP::Hep3Vector SiStripGeomFTD::transformPointToGlobal(short int diskID,
 	const double zsensorCd = _ftdLayer->getSensitiveZposition(diskID,petalID,sensorID)*mm;
 	const double sensorthickness = _ftdLayer->getSensitiveThickness(diskID)*mm;
 	// Sensor 3 and 4: Displacing to the trapezoid farest the IP
-	double zsensor = zsensorCd-zsign*sensorthickness/2.0;
+	double zsensor = zsensorCd+zsign*sensorthickness/2.0;
 	// Sensor 1 and 2: Displacing to the trapezoid facing the IP
 	if( sensorID < 3 )
 	{
-		zsensor = zsensorCd+zsign*sensorthickness/2.0;
+		zsensor = zsensorCd-zsign*sensorthickness/2.0;
 	}
 	/* OLD
 	// Sensors 3 and 4: Displacing to the backed the IP face
