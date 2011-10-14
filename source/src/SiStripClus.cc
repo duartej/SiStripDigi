@@ -380,9 +380,9 @@ exit(0);*/
 		//
 		// Find clusters
 		ClsVec clsVec = findClus(sensorMap);
-
-      // Releasing memory and clearing
-      releaseMap(sensorMap);
+		
+		// Releasing memory and clearing
+		releaseMap(sensorMap);
 
       //
       // Calculate real + ghost hits from clusters - in global ref. system + create relations to MCParticles
@@ -828,8 +828,6 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 
 			      // Residuals: ref. frame difined in the simHit-- rPhi, r
 			      const double theta = atan2(simPosGlob.getY(),simPosGlob.getX());
-			      const double r=sqrt(simPosGlob.getX()*simPosGlob.getX()
-					      +simPosGlob.getY()*simPosGlob.getY());
 			      //-- getting the reconstructed hit to the global ref.
 			      CLHEP::Hep3Vector recPoint = _geometry->transformPointToGlobal(
 					      layerID,ladderID,1,position);
@@ -1893,15 +1891,15 @@ void SiStripClus::releaseMap( SensorStripMap & sensorMap )
 			iterSMap!=sensorMap.end(); iterSMap++) 
 	{
 		//Array contents
-		// Strips in R-Phi
-		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPRPHI].begin(); 
-				iterChMap!=iterSMap->second[STRIPRPHI].end(); iterChMap++)
+		// Strips in Front
+		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); 
+				iterChMap!=iterSMap->second[STRIPFRONT].end(); iterChMap++)
 		{
 			delete iterChMap->second;
 		}
-		// Strips in Z
-		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPZ].begin(); 
-				iterChMap!=iterSMap->second[STRIPZ].end(); iterChMap++)
+		// Strips in Rear
+		for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPREAR].begin(); 
+				iterChMap!=iterSMap->second[STRIPREAR].end(); iterChMap++)
 		{
 			delete iterChMap->second;
 		}
