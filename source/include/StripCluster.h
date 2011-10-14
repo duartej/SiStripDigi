@@ -16,68 +16,82 @@ namespace sistrip {
 //! @author Z. Drasal, Charles University Prague
 //!
 
-class StripCluster {
+class StripCluster 
+{
+	public:
+		//!Constructor
+		StripCluster( short int layerID  , short int ladderID , short int sensorID,
+				CLHEP::Hep3Vector position, CLHEP::Hep3Vector posSigma, 
+				double charge,  short int size) :
+			_iLayer(layerID)   , _iLadder(ladderID) , _iSensor(sensorID),
+			_position(position), _posSigma(posSigma), _charge(charge), _size(size)
+	{ _stripFront = 0; _stripRear  = 0;}     
+		//!Constructor with strips ID
+		StripCluster( short int layerID  , short int ladderID , short int sensorID,
+				CLHEP::Hep3Vector position, CLHEP::Hep3Vector posSigma, 
+				double charge, short int size, 
+				short int stripFront, short int stripRear) :
+			_iLayer(layerID)   , _iLadder(ladderID) , _iSensor(sensorID),
+			_position(position), _posSigma(posSigma), _charge(charge), 
+			_size(size), _stripFront(stripFront), _stripRear(stripRear)
+	{;}
+		//!Destructor
+		~StripCluster();
+		
+		// SET METHODS
+		
+		//!Set cluster layer ID
+		inline void setLayerID(short int iLayer) {_iLayer = iLayer;}
 
- public:
-
-//!Constructor
-   StripCluster( short int layerID  , short int ladderID , short int sensorID,
-                 CLHEP::Hep3Vector position, CLHEP::Hep3Vector posSigma, double charge, short int size) :
-                 _iLayer(layerID)   , _iLadder(ladderID) , _iSensor(sensorID),
-                 _position(position), _posSigma(posSigma), _charge(charge), _size(size) {;}
-
-//!Destructor
-	~StripCluster();
-
-// SET METHODS
-
-//!Set cluster layer ID
-	inline void setLayerID(short int iLayer) {_iLayer = iLayer;}
-
-//!Set cluster ladder ID
-	inline void setLadderID(short int iLadder) {_iLadder = iLadder;}
-
-//!Set cluster sensor ID
-	inline void setSensorID(short int iSensor) {_iSensor = iSensor;}
-
-//!Set cluster position X in cm
-   inline void setPosX( double posX) {_position.setX(posX);}
-
-//!Set cluster position Y in cm
-   inline void setPosY( double posY) {_position.setY(posY);}
-
-//!Set cluster position Z in cm
-   inline void setPosZ( double posZ) {_position.setZ(posZ);}
-
-//!Set cluster position Three vector in cm
-   void set3Position( const CLHEP::Hep3Vector & position);
-
-//!Set cluster - position sigma X in cm
-   inline void setPosSigmaX( double posSigmaX) {_posSigma.setX(posSigmaX);}
-
-//!Set cluster - position sigma Y in cm
-   inline void setPosSigmaY( double posSigmaY) {_posSigma.setY(posSigmaY);}
-
-//!Set cluster - position sigma Z in cm
-   inline void setPosSigmaZ( double posSigmaZ) {_posSigma.setZ(posSigmaZ);}
-
-//!Set cluster position Three vector in cm
-   void set3PosSigma( const CLHEP::Hep3Vector & position);
-
-//!Set cluster charge
-   inline void setCharge( double charge) {_charge = charge;}
-
-//!Set time when the cluster has been created by a particle in s
-	inline void setTime( double time) {_time = time;}
-
-//!Set cluster size (how many strips contributed)
-	inline void setSize( short int size) {_size = size;}
-
-//!Update MC truth information about SimTrackerHits, which contributed
-   void updateSimHitMap(SimTrackerHitMap simHitMap);
-
-
-// GET METHODS
+		//!Set cluster ladder ID
+		inline void setLadderID(short int iLadder) {_iLadder = iLadder;}
+		
+		//!Set cluster sensor ID
+		inline void setSensorID(short int iSensor) {_iSensor = iSensor;}
+		
+		//!Set cluster position X in cm
+		inline void setPosX( double posX) {_position.setX(posX);}
+		
+		//!Set cluster position Y in cm
+		inline void setPosY( double posY) {_position.setY(posY);}
+		
+		//!Set cluster position Z in cm
+		inline void setPosZ( double posZ) {_position.setZ(posZ);}
+		
+		//!Set cluster position Three vector in cm
+		void set3Position( const CLHEP::Hep3Vector & position);
+		
+		//!Set cluster - position sigma X in cm
+		inline void setPosSigmaX( double posSigmaX) {_posSigma.setX(posSigmaX);}
+		
+		//!Set cluster - position sigma Y in cm
+		inline void setPosSigmaY( double posSigmaY) {_posSigma.setY(posSigmaY);}
+		
+		//!Set cluster - position sigma Z in cm
+		inline void setPosSigmaZ( double posSigmaZ) {_posSigma.setZ(posSigmaZ);}
+		
+		//!Set cluster position Three vector in cm
+		void set3PosSigma( const CLHEP::Hep3Vector & position);
+		
+		//!Set cluster charge
+		inline void setCharge( double charge) {_charge = charge;}
+		
+		//!Set time when the cluster has been created by a particle in s
+		inline void setTime( double time) {_time = time;}
+		
+		//!Set cluster size (how many strips contributed)
+		inline void setSize( short int size) {_size = size;}
+		
+		//!Update MC truth information about SimTrackerHits, which contributed
+		void updateSimHitMap(SimTrackerHitMap simHitMap);
+		
+		//!Set front strip ID
+		void setStripFront(const int & stripId) {_stripFront = stripId;}
+		
+		//!Set rear strip ID
+		void setStripRear(const int & stripId) {_stripRear = stripId;}
+		
+		// GET METHODS
 
 //!Get cluster layer ID
 	inline short int getLayerID() const {return _iLayer;}
@@ -140,6 +154,9 @@ class StripCluster {
    double _charge;              //!<Total charge deposited
    double _time;                //!<Time when the cluster has been created by a particle
    short int _size;             //!<Cluster size
+
+   short int _stripFront;       //!<Strip ID of the front sensor
+   short int _stripRear;        //!<Strip ID of the rear sensor
 
    SimTrackerHitMap _simHitMap; //!< Map of SimTrkHits which contributed to the signal
 

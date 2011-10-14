@@ -105,6 +105,7 @@ void SiStripGeomFTD::initGearParams()
 	_sensorWidth2.reserve(2*_numberOfLayers);
 	_sensorLength.reserve(2*_numberOfLayers);
 	_layerRealID.reserve(2*_numberOfLayers);
+	_ladderThick.reserve(2*_numberOfLayers);
 	_ladderOffsetZ.reserve(2*_numberOfLayers);
 	_ladderZOffsetSign0.reserve(2*_numberOfLayers);
 	_numberOfLadders.reserve(2*_numberOfLayers);
@@ -125,6 +126,7 @@ void SiStripGeomFTD::initGearParams()
 		_sensorWidth.push_back(_ftdLayer->getSensitiveLengthMax(i)*mm);// x-direction
 		_sensorWidth2.push_back(_ftdLayer->getSensitiveLengthMin(i)*mm);// x-direction
 		_sensorLength.push_back(_ftdLayer->getSensitiveWidth(i)*mm);   // y-direction
+		_ladderThick.push_back(_ftdLayer->getSupportThickness(i)*mm);
 		_ladderZOffsetSign0.push_back(_ftdLayer->getZoffsetSign0(i));
 		_ladderOffsetZ.push_back(_ftdLayer->getZoffset(i)*mm);
 		_numberOfLadders.push_back(_ftdLayer->getNPetals(i));
@@ -150,6 +152,7 @@ void SiStripGeomFTD::initGearParams()
 	_sensorWidth2.insert(_sensorWidth2.end(),_sensorWidth2.begin(),_sensorWidth2.end());
 	_sensorLength.insert(_sensorLength.end(),_sensorLength.begin(),
 			_sensorLength.end());
+	_ladderThick.insert(_ladderThick.end(),_ladderThick.begin(),_ladderThick.end());
 	_ladderOffsetZ.insert(_ladderOffsetZ.end(),_ladderOffsetZ.begin(),
 			_ladderOffsetZ.end());
 	_ladderZOffsetSign0.insert(_ladderZOffsetSign0.end(),_ladderZOffsetSign0.begin(),
@@ -1041,6 +1044,7 @@ std::cout << "-----+END SiStripGeomFTD::getStripIDInRPhi +------" << std::endl;*
 		return 0.;
 	}
 }*/
+
 
 //
 // Get sensor pitch

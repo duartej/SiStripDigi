@@ -99,7 +99,8 @@ class SiStripClus : public Processor
 		void calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits);
 		
 		//!Method calculating hit resolution, i.e. covariance matrix
-		void calcResolution(short int layerID, double hitTheta, float * covMatrix);
+		float * calcResolution(const int & layerID, const double & hitTheta,
+				const double & posZ);
 		
 		//!Method to update and store the Sensor strip map
 		void updateMap(TrackerPulseImpl * pulse,  

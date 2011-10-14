@@ -23,7 +23,7 @@
 #include <IMPL/LCRelationImpl.h>
 #include <UTIL/LCRelationNavigator.h>
 #include <IMPL/TrackerPulseImpl.h>
-#include <IMPL/TrackerHitImpl.h>
+#include <IMPL/TrackerHitPlaneImpl.h>
 #include <UTIL/CellIDDecoder.h>
 
 
@@ -384,12 +384,12 @@ exit(0);*/
 		// Releasing memory and clearing
 		releaseMap(sensorMap);
 
-      //
-      // Calculate real + ghost hits from clusters - in global ref. system + create relations to MCParticles
-      IMPL::LCCollectionVec * colOfTrkHits        = new IMPL::LCCollectionVec(LCIO::TRACKERHIT);
-
-      // Calculate them
-      calcHits(clsVec, colOfTrkHits);
+		//
+		// Calculate real + ghost hits from clusters - in global ref. system + 
+		// create relations to MCParticles
+		IMPL::LCCollectionVec * colOfTrkHits = new IMPL::LCCollectionVec(LCIO::TRACKERHIT);
+		// Calculate them
+		calcHits(clsVec, colOfTrkHits);
 
       //
 		// Save the collection (vector) of hits + relation to MC
@@ -1617,7 +1617,7 @@ StripChargeMap & SiStripClus::storeHitsAdjacents( StripChargeMap & clsStrips,
 //
 // Method calculating hits from given clusters
 //
-void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits) ////,IMPL::LCCollectionVec * colOfRelMCToTrkHits)
+void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits)
 {
 	// Cluster - position, covariance matrix (3x3 = 6 parameters = lower triangle matrix)
 	ClsVec::iterator iterClsVec;
@@ -1652,148 +1652,202 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 		posSigma    = pCluster->get3PosSigma();
 		
 		totalCharge = pCluster->getCharge();
+
+		CLHEP::Hep3Vector localPos = position;
 		
 		// Transform hit and covariance to the global ref. system
-		position = _geometry->transformPointToGlobal(layerID, ladderID, sensorID, position);
-		
+		position = _geometry->transformPointToGlobal(layerID, ladderID, 
+				sensorID, position);
+		// Reasigning the z-position to be placed in the middle between the
+		// front and rear sensor
+		const int sign = abs(_geometry->getLayerRealID(layerID))
+			/_geometry->getLayerRealID(layerID);
+		const double offsetZ = _geometry->getLadderThick(layerID)/2.
+			+_geometry->getSensorThick(layerID)/2.;
+		position.setZ(position.getZ()+sign*offsetZ);
+
 		// Save into LCIO native variables and in appropriate units
-		double posLCIO[3]                = { position.getX()/mm, position.getY()/mm, position.getZ()/mm };
-		float  covLCIO[TRKHITNCOVMATRIX] = { 0.                ,
-			                                  0.                , 0.                ,
-			                                  0.                , 0.                , 0. };
+		double posLCIO[3] = { position.getX()/mm, position.getY()/mm, 
+			position.getZ()/mm };
 
 		// Calculate resolution
-		calcResolution(layerID, position.theta()/pi * 180., covLCIO);
+		float * covLCIO = calcResolution(layerID, position.theta()/pi * 180.,
+				localPos.getZ());
 
 		// Create new Tracker hit
-		TrackerHitImpl * trkHit = new TrackerHitImpl();
+		TrackerHitPlaneImpl * trkHit = new TrackerHitPlaneImpl();
 
-		// Set hit type: SVD type is 201 + layer ID
+		// Set hit type: SVD type is 201 + layer ID ??
 		trkHit->setType(layerID + 201);
 		trkHit->setPosition(posLCIO);
-      trkHit->setCovMatrix(covLCIO);
-      trkHit->setEDep(totalCharge / e); // in electrons
-      trkHit->setTime(0.); // NOT IMPLEMENTED YET
+		// U and V error, not using covMatrix anymore
+		// trkHit->setCovMatrix(covLCIO);
+		// Width of the strip: 1/2 pitch
+		trkHit->setdU( _geometry->getSensorPitch(layerID,1,localPos.getZ())/2.0 );
+		// Strip length // FIXME: by the moment using the minimum distance
+		trkHit->setdV( _geometry->getSensorLength(layerID) );
+		trkHit->setEDep(totalCharge / e); // in electrons
+		trkHit->setTime(pCluster->getTime());
 
-      // Set simTrkHits which contributed & find hit with highest weight
-      const SimTrackerHitMap & simHitMap = pCluster->getSimHitMap();
-      //float                    weightSum = pCluster->getSimHitWeightSum();
-      SimTrackerHit          * simTrkHit = 0;
-      float                    weight    = 0;
-
-      for (SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); iterSHM!=simHitMap.end(); iterSHM++) {
-
-         // Don't save "noise hits", i.e. zero pointers
-         //if (iterSimTrkHMap->first!=0) trkHit->rawHits().push_back(dynamic_cast<SimTrackerHit*>(iterSimTrkHMap->first));
-
-         // Find contribution with highest weight
-         if ( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) {
-
-            simTrkHit = iterSHM->first;
-            weight    = iterSHM->second;
-         }
-      }
-
-      // Save only hit with highest weight
-      trkHit->rawHits().push_back(simTrkHit);
-
-      // Save the hit to the collection
-      colOfTrkHits->addElement(trkHit);
-
-      // Print infor
-      printHitInfo(pCluster);
-
-      // Release memory
-      delete pCluster;
-
+		// The unit vector of the local reference frame of the front sensor
+		// u: rphi direction, v: radial direction
+		CLHEP::Hep3Vector Uvector = _geometry->transformVecToGlobal(layerID,
+				ladderID,1,CLHEP::Hep3Vector(0.0,1.0,0.0));
+		float Uf[2] = { Uvector.getX(), Uvector.getY() };
+		CLHEP::Hep3Vector Vvector = _geometry->transformVecToGlobal(layerID,
+				ladderID,1,CLHEP::Hep3Vector(0.0,0.0,1.0));
+		float Vf[2] = { Vvector.getX(), Vvector.getY() };
+		trkHit->setU( Uf );
+		trkHit->setV( Vf );
+		
+		// Set simTrkHits which contributed & find hit with highest weight
+		const SimTrackerHitMap & simHitMap = pCluster->getSimHitMap();
+		//float                    weightSum = pCluster->getSimHitWeightSum();
+		SimTrackerHit          * simTrkHit = 0;
+		float                    weight    = 0;
+		
+		for(SimTrackerHitMap::const_iterator iterSHM=simHitMap.begin(); 
+				iterSHM!=simHitMap.end(); iterSHM++) 
+		{
+			// Don't save "noise hits", i.e. zero pointers
+			//if (iterSimTrkHMap->first!=0) rkHit->rawHits().push_back(dynamic_cast<SimTrackerHit*>(iterSimTrkHMap->first));
+			// Find contribution with highest weight
+			if( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) 
+			{
+				simTrkHit = iterSHM->first;
+				weight    = iterSHM->second;
+			}
+		}
+		
+		// Save only hit with highest weight
+		trkHit->rawHits().push_back(simTrkHit);
+		
+		// Save the hit to the collection
+		colOfTrkHits->addElement(trkHit);
+		
+		// Print infor
+		printHitInfo(pCluster);
+		
+		// Release memory
+		delete pCluster;
+		
 	} // For
-
+	
 	streamlog_out(MESSAGE2)    << std::endl;
-
+	
 	// Clear content
 	clsVec.clear();
 }
-
 //
 // Method calculating hit resolution, i.e. covariance matrix
-//
-void SiStripClus::calcResolution(short int layerID, double hitTheta, float * covMatrix)
+// The posZ is in local frame coordinate system
+float * SiStripClus::calcResolution(const int & layerID,const double & hitTheta, 
+		const double & posZ)
 {
-// Define array of theta angle
-   static float theta[14] = {20., 30., 40., 50., 60., 70., 80., 90., 100., 110., 120., 130., 140., 150.};
+	static float covMatrix[6] = { 0., 0., 0.,
+		                                     0., 0., 0. };
+	// Assuming resolution as pitch/2
+	// we need the zposlocal in the local reference system
+	const double halfPitch = _geometry->getSensorPitch(layerID,1,posZ);
 
-// Find correct bin for theta (-1 for < 20deg; 14 for > 150deg)
-   int iTheta = -1;
-   for (int i=0; i<14; i++) if (hitTheta>=theta[i]) iTheta++;
+	const double sigmax = halfPitch/(2.*cos(hitTheta));
+	const double sigmay = halfPitch*sin(hitTheta)/2.;
 
-// Define tracker hit resolution
-   float resInZ    = 0.;
-   float resInRPhi = 0.;
+	// Set covariance matrix in appropriate units*/
+	// Assuming no correlations between the front and rear sensor
+	covMatrix[0] = sigmax/mm * sigmax/mm;
+	covMatrix[2] = sigmay/mm * sigmay/mm;
+	covMatrix[5] = (_geometry->getLadderThick(layerID) 
+			+_geometry->getSensorThick(layerID))/2.0;
 
-//
-// Calculate resolution - interpolate between given theta angles
+	return covMatrix;
+	// Define array of theta angle
+	/*static float theta[14] = {20., 30., 40., 50., 60., 70., 80., 90., 
+		100., 110., 120., 130., 140., 150.};
+	
+	// Find correct bin for theta (-1 for < 20deg; 14 for > 150deg)
+	int iTheta = -1;
+	for(int i=0; i<14; i++) 
+	{
+		if (hitTheta>=theta[i])
+		{
+			iTheta++;
+		}
+	}
+	
+	// Define tracker hit resolution
+	float resInZ    = 0.;
+	float resInRPhi = 0.;
+	
+	//
+	// Calculate resolution - interpolate between given theta angles
+	
+	// Theta is less than 20 degrees
+	if (iTheta == -1) 
+	{
+		// SVD - First layer
+		if (layerID == 2) 
+		{
+			resInZ    = _resSVDFirstInZ[0];
+			resInRPhi = _resSVDFirstInRPhi[0];
+		}
+		
+		// SVD - Other layers
+		else 
+		{
+			resInZ    = _resSVDOtherInZ[0];
+			resInRPhi = _resSVDOtherInRPhi[0];
+		}
+	}
+	// Theta is higher than 150 degrees
+	else if (iTheta == 14) 
+	{
+		// SVD - First layer
+		if (layerID == 2) 
+		{
+			resInZ    = _resSVDFirstInZ[13];
+			resInRPhi = _resSVDFirstInRPhi[13];
+		}
+		
+		// SVD - Other layers
+		else 
+		{
+			resInZ    = _resSVDOtherInZ[13];
+			resInRPhi = _resSVDOtherInRPhi[13];      
+		}
+	}
+	
+	// Interpolate between 20 and 150 degrees
+	else 
+	{
+		// SVD - First layer
+		if (layerID == 2) 
+		{
+			resInZ    = _resSVDFirstInZ[iTheta]    +
+				(_resSVDFirstInZ[iTheta+1]    - _resSVDFirstInZ[iTheta]   )
+				/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+			resInRPhi = _resSVDFirstInRPhi[iTheta] +
+				(_resSVDFirstInRPhi[iTheta+1] - _resSVDFirstInRPhi[iTheta])
+				/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+		}
+		
+		// SVD - Other layers
+		else 
+		{
+			resInZ    = _resSVDOtherInZ[iTheta]    +
+				(_resSVDOtherInZ[iTheta+1]    - _resSVDOtherInZ[iTheta]   )
+				/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+			resInRPhi = _resSVDOtherInRPhi[iTheta] +
+				(_resSVDOtherInRPhi[iTheta+1] - _resSVDOtherInRPhi[iTheta])
+				/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
+		}
+	}
+	
+	// Set covariance matrix in appropriate units
+	covMatrix[2] = resInRPhi/mm * resInRPhi/mm;
+	covMatrix[5] = resInZ/mm * resInZ/mm;
 
-   // Theta is less than 20 degrees
-   if (iTheta == -1) {
-
-      // SVD - First layer
-      if (layerID == 2) {
-
-         resInZ    = _resSVDFirstInZ[0];
-         resInRPhi = _resSVDFirstInRPhi[0];
-      }
-
-      // SVD - Other layers
-      else {
-
-         resInZ    = _resSVDOtherInZ[0];
-         resInRPhi = _resSVDOtherInRPhi[0];
-      }
-   }
-
-   // Theta is higher than 150 degrees
-   else if (iTheta == 14) {
-
-      // SVD - First layer
-      if (layerID == 2) {
-
-         resInZ    = _resSVDFirstInZ[13];
-         resInRPhi = _resSVDFirstInRPhi[13];
-      }
-
-      // SVD - Other layers
-      else {
-
-         resInZ    = _resSVDOtherInZ[13];
-         resInRPhi = _resSVDOtherInRPhi[13];
-      }
-   }
-
-   // Interpolate between 20 and 150 degrees
-   else {
-
-      // SVD - First layer
-      if (layerID == 2) {
-
-         resInZ    = _resSVDFirstInZ[iTheta]    +
-                    (_resSVDFirstInZ[iTheta+1]    - _resSVDFirstInZ[iTheta]   )/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
-         resInRPhi = _resSVDFirstInRPhi[iTheta] +
-                    (_resSVDFirstInRPhi[iTheta+1] - _resSVDFirstInRPhi[iTheta])/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
-      }
-
-      // SVD - Other layers
-      else {
-
-         resInZ    = _resSVDOtherInZ[iTheta]    +
-                    (_resSVDOtherInZ[iTheta+1]    - _resSVDOtherInZ[iTheta]   )/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
-         resInRPhi = _resSVDOtherInRPhi[iTheta] +
-                    (_resSVDOtherInRPhi[iTheta+1] - _resSVDOtherInRPhi[iTheta])/(theta[iTheta+1] - theta[iTheta])*(hitTheta - theta[iTheta]);
-      }
-   }
-
-// Set covariance matrix in appropriate units
-   covMatrix[2] = resInRPhi/mm * resInRPhi/mm;
-   covMatrix[5] = resInZ/mm * resInZ/mm;
+	return covMatrix;*/
 }
 
 //

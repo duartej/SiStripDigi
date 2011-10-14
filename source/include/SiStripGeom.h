@@ -142,6 +142,7 @@ class SiStripGeom
 		//!Get ladder rotation - theta angle
 		virtual double getLadderTheta(short int layerID) const = 0;
 
+		
 		// SENSOR PROPERTIES
 		//!Get number of sensors for given ladder
 		virtual short int getNSensors(short int layerID) const;
@@ -221,17 +222,7 @@ class SiStripGeom
 		//!Get info whether the given point is out of Si sensor
 		virtual bool isPointOutOfSensor(short int layerID, 
 				const CLHEP::Hep3Vector & point) const = 0;
-		//!Get strip position for strips paralel to the local z-axis. 
-//		virtual double getStripPosInZ(short int layerID, int stripID) const;// = 0;
-//		//!Get strip position for strips lying in the R-Phi local plane
-//		//!(parpendicular to local z-axis)
-//		virtual double getStripPosInRPhi(short int layerID, int stripID, 
-//				double posZ) const;// = 0;
-//		//!Get strip ID for strips paralels to the local z-axis
-//		virtual int getStripIDInZ(short int layerID, double posZ) const;// = 0;
-//		//!Get strip ID for strips lying in the RPhi local plane
-//		virtual int getStripIDInRPhi(short int layerID, double posRPhi, 
-//				double posZ) const = 0;
+
 		//!Get strip y-position
 		virtual double getStripPosY(const int & layerID, const int & sensorID, 
 				const int & stripID, const double & posZ) const =0;

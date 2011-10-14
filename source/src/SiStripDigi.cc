@@ -1380,19 +1380,27 @@ double SiStripDigi::getElecDriftTime(double pos)
 double SiStripDigi::getHoleDriftTime(double pos)
 {
 	// Set pointer to velocity function and create instance of IntSolver
-   double (SiStripDigi::* pfce)(double) = &SiStripDigi::getHoleInvVelocity;
-   RombIntSolver<SiStripDigi> holeIntSolver(pfce, this, _epsTime);
-
-   if (pos<0.) {
-      streamlog_out(ERROR) << "Problem to calculate total drift time. Holes at position: "
-		            		   << pos << " are out of range!"
-		            		   << std::endl;
-      exit(-1);
-   }
-
-   // Result (Be carefull about rounding errors)
-   if ((pos) <= ROUNDEPS*um) return 0.;
-   else return (holeIntSolver.Integrate(pos, 0.));
+	double (SiStripDigi::* pfce)(double) = &SiStripDigi::getHoleInvVelocity;
+	RombIntSolver<SiStripDigi> holeIntSolver(pfce, this, _epsTime);
+	
+	if(pos < -ROUNDEPS*um ) 
+	{
+		streamlog_out(ERROR) << "Problem to calculate total drift time."
+			<< " Holes at position: " << std::setprecision(5) 
+			<< pos << " are out of range!"
+			<< std::endl;
+		exit(-1);
+	}
+	
+	// Result (Be carefull about rounding errors)
+	if((pos) <= ROUNDEPS*um)
+	{
+		return 0.;
+	}
+	else 
+	{
+		return (holeIntSolver.Integrate(pos, 0.));
+	}
 }
 
 //
@@ -1401,7 +1409,7 @@ double SiStripDigi::getHoleDriftTime(double pos)
 double SiStripDigi::getEField(double pos)
 {
 	// Si wafer thickness in cm (Added the rounding error)
-	if(pos<0 || pos > _sensorThick+ROUNDEPS*um) 
+	if(pos< -ROUNDEPS*um || pos > _sensorThick+ROUNDEPS*um) 
 	{
 		streamlog_out(ERROR) << std::setprecision(3) 
 			<< "Electric field at required position[um]: " << pos/um
@@ -1457,34 +1465,36 @@ double SiStripDigi::getHoleMobility(double pos)
 //
 Hep3Vector SiStripDigi::getElecLorentzShift(double pos)
 {
-   // Set pointer to mobility function and create static instance to IntSolver
-   double (SiStripDigi::* pfce)(double) = &SiStripDigi::getElecMobility;
-   RombIntSolver<SiStripDigi> elecIntSolver(pfce, this, _epsAngle);
+	// Set pointer to mobility function and create static instance to IntSolver
+	double (SiStripDigi::* pfce)(double) = &SiStripDigi::getElecMobility;
+	RombIntSolver<SiStripDigi> elecIntSolver(pfce, this, _epsAngle);
+	
+	// Hall scattering factor for electrons
+	static float rElec = 1.13 + 0.0008*(_temp - 273);
+	
+	// Si wafer thickness in cm
+	if (pos >_sensorThick) 
+	{      
+		streamlog_out(ERROR) 
+			<< "Problem to calculate Lorentz angle. Electrons at position: "
+			<< pos << " are out of range!" << std::endl;      
+		exit(-1);
+	}
 
-   // Hall scattering factor for electrons
-   static float rElec = 1.13 + 0.0008*(_temp - 273);
-
-   // Si wafer thickness in cm
-   if (pos>_sensorThick) {
-      streamlog_out(ERROR) << "Problem to calculate Lorentz angle. Electrons at position: "
-		            		   << pos << " are out of range!"
-		            		   << std::endl;
-      exit(-1);
-   }
-
-   // Final Lorentz shift for electrons (Be careful about rounding errors)
-   Hep3Vector shiftLorentz(0.,0.,0.);
-
-   if ((_sensorThick - pos) >= ROUNDEPS*um) {
-   	double integral = elecIntSolver.Integrate(pos, _sensorThick);
-
-      shiftLorentz.setY(integral * rElec * _magField.getZ() * -1.); //????
-   	shiftLorentz.setZ(integral * rElec * _magField.getY());       //????
-
-   	//std::cout << "Mag field: " << _magField/T << " Lorentz shift: " << shiftLorentz/(_sensorThick-pos) << " " <<  (_sensorThick-pos)/um << " " << shiftLorentz << std::endl;
-   }
-
-   return (shiftLorentz);
+	// Final Lorentz shift for electrons (Be careful about rounding errors)
+	Hep3Vector shiftLorentz(0.,0.,0.);
+	
+	if((_sensorThick - pos) >= ROUNDEPS*um) 
+	{
+		double integral = elecIntSolver.Integrate(pos, _sensorThick);
+		
+		shiftLorentz.setY(integral * rElec * _magField.getZ() * -1.); //????
+		shiftLorentz.setZ(integral * rElec * _magField.getY());       //????
+		
+		//std::cout << "Mag field: " << _magField/T << " Lorentz shift: " << shiftLorentz/(_sensorThick-pos) << " " <<  (_sensorThick-pos)/um << " " << shiftLorentz << std::endl;
+	}
+	
+	return (shiftLorentz);
 }
 
 //
@@ -1492,32 +1502,33 @@ Hep3Vector SiStripDigi::getElecLorentzShift(double pos)
 //
 Hep3Vector SiStripDigi::getHoleLorentzShift(double pos)
 {
-   // Set pointer to mobility function and create static instance to IntSolver
-   double (SiStripDigi::* pfce)(double) = &SiStripDigi::getHoleMobility;
-   RombIntSolver<SiStripDigi> holeIntSolver(pfce, this);
-
-   // Hall scattering factor for holes
-   static float rHole = 0.72 - 0.0005*(_temp - 273);
-
-   // Si wafer thickness in cm
-   if (pos<0) {
-      streamlog_out(ERROR) << "Problem to calculate Lorentz angle. Holes at position: "
-		            		   << pos << " are out of range!"
-		            		   << std::endl;
-      exit(-1);
-   }
-
-   // Final Lorentz shift for holes (Be careful about rounding errors)
-   Hep3Vector shiftLorentz(0.,0.,0.);
-
-   if (pos >= ROUNDEPS*um) {
-   	double integral = holeIntSolver.Integrate(0., pos);
-
-   	shiftLorentz.setY(integral * rHole * _magField.getZ());        //????
-   	shiftLorentz.setZ(integral * rHole * _magField.getY() * -1.);  //????
-   }
-
-   return (shiftLorentz);
+	// Set pointer to mobility function and create static instance to IntSolver
+	double (SiStripDigi::* pfce)(double) = &SiStripDigi::getHoleMobility;
+	RombIntSolver<SiStripDigi> holeIntSolver(pfce, this);
+	
+	// Hall scattering factor for holes
+	static float rHole = 0.72 - 0.0005*(_temp - 273);
+	
+	// Si wafer thickness in cm
+	if(pos < -ROUNDEPS*um) 
+	{
+		streamlog_out(ERROR) << "Problem to calculate Lorentz angle."
+			<< " Holes at position: "  << pos << " are out of range!"
+			<< std::endl;
+		exit(-1);
+	}
+	
+	// Final Lorentz shift for holes (Be careful about rounding errors)
+	Hep3Vector shiftLorentz(0.,0.,0.);
+	if(pos >= ROUNDEPS*um) 
+	{
+		double integral = holeIntSolver.Integrate(0., pos);
+		
+		shiftLorentz.setY(integral * rHole * _magField.getZ());        //????
+		shiftLorentz.setZ(integral * rHole * _magField.getY() * -1.);  //????
+	}
+	
+	return (shiftLorentz);
 }
 
 //

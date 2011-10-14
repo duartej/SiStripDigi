@@ -158,6 +158,7 @@ class SiStripGeomFTD: public SiStripGeom
 		//!Method impossed by consistent with the mother class.
 		//!The FTD sensors are all perpendicular to the beam axis
 		virtual double getLadderTheta(short int diskID) const { return M_PI/2.0;}
+		
 
 		// PRINT METHODS
 		//!Method printing general Gear parameters
