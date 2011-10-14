@@ -889,7 +889,8 @@ CLHEP::Hep3Vector SiStripGeomFTD::getStripUnitVector(const int & diskID, const i
 }
 
 //
-// Get the point crossing two strips (returning in the middle of the sensor)
+// Get the point crossing two strips. The returned point is placed in the middle
+// of the Front sensor (x=getSensorThick/2.0)
 //
 CLHEP::Hep3Vector SiStripGeomFTD::getCrossLinePoint(const int & diskID, const int & petalID,
 		const int & stripIDFront, const int & stripIDRear) const
@@ -897,22 +898,23 @@ CLHEP::Hep3Vector SiStripGeomFTD::getCrossLinePoint(const int & diskID, const in
 	// Extract y in z=0 in front and rear
 	const double yatz0Front = getStripPosY(diskID,1,stripIDFront,0.0);
 	const double yatz0Rear = getStripPosY(diskID,3,stripIDRear,0.0);
+	// And putting them in the same reference system (the front ref. local system)
+	const double yatz0RearPrime = getSensorWidthMax(diskID)-yatz0Rear;
 
 	// Director vectors of the strips
 	CLHEP::Hep3Vector uFront = getStripUnitVector(diskID,1,stripIDFront);
 	CLHEP::Hep3Vector uRear  = getStripUnitVector(diskID,3,stripIDRear);
+	// Reference system front
+	uRear.rotateZ(-M_PI);
 	
 	// Strip line parametrized with t => r = (yatz0,0)+t(uz,uy)
 	const double extProd = uFront.getY()*uRear.getZ()-uFront.getZ()*uRear.getY();
-	const double tR = (yatz0Rear-yatz0Front)*uFront.getZ()/extProd;
-
-	const double y = yatz0Rear+tR*uRear.getY();
+	const double tR = (yatz0RearPrime-yatz0Front)*uFront.getZ()/extProd;
+	
+	const double y = yatz0RearPrime+tR*uRear.getY();
 	const double z = tR*uRear.getZ();
-std::cout<< "======== Front: " <<uFront << " y0=" << yatz0Front << std::endl;
-std::cout<< "         Rear:  " <<uRear<< "   y0=" << yatz0Rear  << std::endl;
-std::cout<< "                   tR=" << tR << " extProd:" << extProd <<	std::endl;
 
-	return CLHEP::Hep3Vector(getSensorThick(diskID),y,z);
+	return CLHEP::Hep3Vector(getSensorThick(diskID)/2.0,y,z);
 }
 
 //

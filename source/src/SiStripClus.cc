@@ -195,7 +195,8 @@ void SiStripClus::init()
    _rootTree->Branch("RPhiSim"    ,&_rootSimRPhi     ,"SimRPhi/D"    );
    _rootTree->Branch("RPhiRec"    ,&_rootRecRPhi     ,"RecRPhi/D"    );
    _rootTree->Branch("ResRPhi"    ,&_rootResRPhi     ,"ResRPhi/D"    );
-   _rootTree->Branch("ResZ"       ,&_rootResZ        ,"ResZ/D"    );
+   _rootTree->Branch("ResR"       ,&_rootResR        ,"ResR/D"    );
+   _rootTree->Branch("ResModule"  ,&_rootResModule   ,"Resmodule/D"    );
    _rootTree->Branch("RPhiClsSize",&_rootClsSizeRPhi ,"ClsSizeRPhi/D");
    _rootTree->Branch("RPhiMCPDG"  ,&_rootMCPDGRPhi   ,"MCPDGRPhi/I"  );
    _rootTree->Branch("ZSim"       ,&_rootSimZ        ,"SimZ/D"       );
@@ -723,35 +724,35 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			      }
 
 			      // There are intersection, so store the Hit
-			      // Cluster in front, extracting the unitary vector which
-			      // defines the strip in the local ref. system
+			      // Cluster in Front
 			      StripCluster * pclusterFront = itFront->second;
-			      // Cluster in Rear, extracting the unitary vector which
-			      // defines the strip in the local ref. system		      
+			      // Cluster in Rear
 			      StripCluster * pclusterRear  = itRear->second;
 
-			      // Get the intersection point
+			      // Get the intersection point (note that the returning value
+			      // is placed in the FRONT sensor and in the x_local = thick/2
 			      CLHEP::Hep3Vector position=_geometry->getCrossLinePoint(layerID,
 					      ladderID,stripIDFront,stripIDRear);
 
-			      // FIXME: Sigma calculation!??
+			      // FIXME: Sigma calculation!?? 
 			      const double sigmaY = sqrt(
 					      pclusterFront->getPosY()*pclusterFront->getPosY()+
 					      pclusterRear->getPosY()*pclusterRear->getPosY());
-			      const double sigmaZ = sqrt(
-					      pclusterFront->getPosZ()*pclusterFront->getPosZ()+
-					      pclusterRear->getPosZ()*pclusterRear->getPosZ());
+			      // The Z indetermination: putting z in the middle of the disk
+			      // (i.e. middle position between front and rear sensors)
+			      // FIXME---> Hay que ver que es esto ???!
+			      const double sigmaZ = _geometry->getSensorThick(layerID);
 			      Hep3Vector posSigma(_geometry->getSensorThick(layerID)/2., 
 					      sigmaY, sigmaZ);
 
 			      double totalCharge = ( pclusterFront->getCharge() +
 					      pclusterRear->getCharge())/2.0;
 			      
-			      // Always postiioned as it was in the front
+			      // Always postioned as it was in the front
 			      StripCluster * pCluster3D = new StripCluster( layerID, ladderID,
 					      1, position, posSigma, totalCharge, 0);
 			      
-			      // Update MC true info for 3Dp
+			      // Update MC true info for 3D
 			      SimTrackerHitMap cls3DSimHitMap = pclusterFront->getSimHitMap();
 
 			      if(cls3DSimHitMap.size() != 0) 
@@ -786,7 +787,7 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			      
 			      // Set reconstructed position
 			      _rootRecRPhi     = pCluster3D->getPosY() / mm;
-			      _rootRecZ        = pCluster3D->getPosZ()    / mm;
+			      _rootRecZ        = pCluster3D->getPosZ() / mm;
 			      // Set cluster sizes
 			      _rootClsSizeRPhi = pclusterFront->getSize();
 			      _rootClsSizeZ    = pclusterRear->getSize();
@@ -823,8 +824,25 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 					      ladderID, 1, simPosGlob);
 			      _rootMCPDGRPhi = simHit->getMCParticle()->getPDG();
 			      _rootSimRPhi   = simPosLoc.getY() / mm;
-			      
-			      // Set simulated position in Rear & MC particle
+			      _rootSimZ      = simPosLoc.getZ() / mm;
+
+			      // Residuals: ref. frame difined in the simHit-- rPhi, r
+			      const double theta = atan2(simPosGlob.getY(),simPosGlob.getX());
+			      const double r=sqrt(simPosGlob.getX()*simPosGlob.getX()
+					      +simPosGlob.getY()*simPosGlob.getY());
+			      //-- getting the reconstructed hit to the global ref.
+			      CLHEP::Hep3Vector recPoint = _geometry->transformPointToGlobal(
+					      layerID,ladderID,1,position);
+			      recPoint -= simPosGlob;
+			      recPoint.rotateZ(theta); // FIXME: Esto es correcto??
+			      // Extracting the residuals
+			      _rootResRPhi  = recPoint.getX();
+			      _rootResR     = recPoint.getY();
+			      _rootResModule= sqrt(recPoint.getX()*recPoint.getX()
+					      +recPoint.getY()*recPoint.getY());
+
+	//FIXME: Que hago con esta doble informacion???
+/*			      // Set simulated position in Rear & MC particle
 			      
 			      // Find SimTrackerHit with highest weight
 			      const SimTrackerHitMap & simHitMapRear = 
@@ -849,7 +867,7 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			      simPosLoc = _geometry->transformPointToLocal(layerID, ladderID, 
 					      3, simPosGlob);
 			      _rootMCPDGZ = simHit->getMCParticle()->getPDG();
-			      _rootSimZ   = simPosLoc.getZ() / mm;
+			      _rootSimZ   = simPosLoc.getZ() / mm;*/
 			      
 			      // Fill the tree
 			      _rootFile->cd("");

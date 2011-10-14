@@ -164,8 +164,10 @@ class SiStripClus : public Processor
 		int    _rootMCPDGRPhi;                 //!< PDG of particle which created current hit in R-Phi (MC Particle with highest weight)
 
 		// Residuals
-		double _rootResRPhi;                   //!< Residual RPhi
-		double _rootResZ; 		       //!< Residual Z
+		double _rootResRPhi;                   //!< Residual RPhi direction
+		double _rootResR; 		       //!< Residual R direction
+		double _rootResModule; 		       //!< Residual Module (distance between
+		                                       //!  simHit and recHit in the sensor plane)
 		
 		// In Z
 		double _rootSimZ;                      //!< Simulated hit position in Z (SimTrackerHit with heighest weight taken)
