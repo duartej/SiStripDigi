@@ -86,10 +86,10 @@ class StripCluster
 		void updateSimHitMap(SimTrackerHitMap simHitMap);
 		
 		//!Set front strip ID
-		void setStripFront(const int & stripId) {_stripFront = stripId;}
+		inline void setStripFront(const int & stripId) {_stripFront = stripId;}
 		
 		//!Set rear strip ID
-		void setStripRear(const int & stripId) {_stripRear = stripId;}
+		inline void setStripRear(const int & stripId) {_stripRear = stripId;}
 		
 		// GET METHODS
 
@@ -140,6 +140,12 @@ class StripCluster
 
 //!Get MC truth information - total sum of individual weights
    float getSimHitWeightSum();
+   
+   		//!Get front strip ID
+		inline int getStripFront() const { return _stripFront;}
+		
+		//!Get rear strip ID
+		inline int getStripRear() const { return _stripRear;}
 
 
  protected:

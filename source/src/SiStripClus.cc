@@ -25,6 +25,8 @@
 #include <IMPL/TrackerPulseImpl.h>
 #include <IMPL/TrackerHitPlaneImpl.h>
 #include <UTIL/CellIDDecoder.h>
+#include <UTIL/CellIDEncoder.h>
+#include <UTIL/ILDConf.h>
 
 
 // Include Marlin
@@ -358,25 +360,6 @@ void SiStripClus::processEvent(LCEvent * event)
 			updateMap(pulse, sensorMap);
 		}
 		
-/*for(SensorStripMap::iterator iterSMap=sensorMap.begin(); iterSMap!=sensorMap.end(); ++iterSMap) 
-{
-std::map<std::string,int> kk = _geometry->decodeCellID(iterSMap->first);
-std::cout << "----- cellID:" << iterSMap->first << " diskID:" << kk["layer"] <<
-" petal:" << kk["module"]+1 << " sensor:" << kk["sensor"] << std::endl;
-std::cout << "       - Type: " << STRIPFRONT << std::endl;
-	// Strips in FRONT
-	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPFRONT].begin(); iterChMap!=iterSMap->second[STRIPFRONT].end(); ++iterChMap)
-	{
-std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
-	}
-        // Strips in REAR
-std::cout << "       - Type: " << STRIPREAR << std::endl;
-	for(StripChargeMap::iterator iterChMap=iterSMap->second[STRIPREAR].begin(); iterChMap!=iterSMap->second[STRIPREAR].end(); ++iterChMap)
-	{
-std::cout << "       stripID: " << iterChMap->first << " signal charge:" << iterChMap->second->getCharge() << std::endl;
-	}
-}
-exit(0);*/
 		//
 		// Find clusters
 		ClsVec clsVec = findClus(sensorMap);
@@ -387,24 +370,25 @@ exit(0);*/
 		//
 		// Calculate real + ghost hits from clusters - in global ref. system + 
 		// create relations to MCParticles
-		IMPL::LCCollectionVec * colOfTrkHits = new IMPL::LCCollectionVec(LCIO::TRACKERHIT);
-		// Calculate them
+		IMPL::LCCollectionVec * colOfTrkHits = 
+			new IMPL::LCCollectionVec(LCIO::TRACKERHITPLANE);
+
+		// Calculate the hits
 		calcHits(clsVec, colOfTrkHits);
 
-      //
+		//
 		// Save the collection (vector) of hits + relation to MC
-      event->addCollection(colOfTrkHits, _outColName);
+		event->addCollection(colOfTrkHits, _outColName);
+	
+	} // If (colOfTrkPulses != 0)
+	// Release memory
+	if(_navigatorPls != NULL) 
+	{
+		delete _navigatorPls;
+		_navigatorPls = NULL;
+	}
 
-   } // If (colOfTrkPulses != 0)
-
-   // Release memory
-   if (_navigatorPls != NULL) {
-
-      delete _navigatorPls;
-      _navigatorPls = NULL;
-   }
-
-   _nEvent++;
+	_nEvent++;
 }
 
 //
@@ -785,9 +769,9 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			      _rootLadderID    = ladderID;
 			      _rootSensorID    = 0;
 			      
-			      // Set reconstructed position
-			      _rootRecRPhi     = pCluster3D->getPosY() / mm;
-			      _rootRecZ        = pCluster3D->getPosZ() / mm;
+			      // Set reconstructed position (local frame)
+			      //_rootRecRPhi     = pCluster3D->getPosY() / mm;
+			      //_rootRecZ        = pCluster3D->getPosZ() / mm;
 			      // Set cluster sizes
 			      _rootClsSizeRPhi = pclusterFront->getSize();
 			      _rootClsSizeZ    = pclusterRear->getSize();
@@ -823,21 +807,27 @@ ClsVec SiStripClus::findClus(SensorStripMap & sensorMap)
 			      simPosLoc = _geometry->transformPointToLocal(layerID, 
 					      ladderID, 1, simPosGlob);
 			      _rootMCPDGRPhi = simHit->getMCParticle()->getPDG();
-			      _rootSimRPhi   = simPosLoc.getY() / mm;
-			      _rootSimZ      = simPosLoc.getZ() / mm;
+			      _rootSimRPhi   = sqrt(simPosGlob.getY()*simPosGlob.getY()+
+					      simPosGlob.getX()*simPosGlob.getX())/mm;
+			      _rootSimZ      = simPosGlob.getZ() / mm;
 
 			      // Residuals: ref. frame difined in the simHit-- rPhi, r
 			      const double theta = atan2(simPosGlob.getY(),simPosGlob.getX());
 			      //-- getting the reconstructed hit to the global ref.
 			      CLHEP::Hep3Vector recPoint = _geometry->transformPointToGlobal(
 					      layerID,ladderID,1,position);
+			      _rootRecRPhi = sqrt(recPoint.getX()*recPoint.getX()
+				      + recPoint.getY()*recPoint.getY())/mm;
+			      _rootRecZ    = recPoint.getZ()/mm;
+
 			      recPoint -= simPosGlob;
 			      recPoint.rotateZ(theta); // FIXME: Esto es correcto??
-			      // Extracting the residuals
-			      _rootResRPhi  = recPoint.getX();
-			      _rootResR     = recPoint.getY();
-			      _rootResModule= sqrt(recPoint.getX()*recPoint.getX()
-					      +recPoint.getY()*recPoint.getY());
+			      // Extracting the residuals: In the local frame
+			      // Sim position - rec position
+			      _rootResRPhi  = (simPosLoc.getY()-position.getY())/mm;
+			      _rootResR     = (simPosLoc.getZ()-position.getZ())/mm;
+			      _rootResModule= sqrt(_rootResRPhi*_rootResRPhi+
+					      _rootResR*_rootResR)/mm;
 
 	//FIXME: Que hago con esta doble informacion???
 /*			      // Set simulated position in Rear & MC particle
@@ -1617,8 +1607,11 @@ StripChargeMap & SiStripClus::storeHitsAdjacents( StripChargeMap & clsStrips,
 //
 // Method calculating hits from given clusters
 //
+// FIXME: Returning colOfTrkHits, clsVec reference?? --> the clsVec.clear
 void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits)
 {
+	// FIXME: Why passing clsVec by reference?
+	//        return the LCCol
 	// Cluster - position, covariance matrix (3x3 = 6 parameters = lower triangle matrix)
 	ClsVec::iterator iterClsVec;
 
@@ -1637,6 +1630,17 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 		<< clsVec.size()
 		<< " hit(s)"
 		<< std::endl;
+	
+	// Set collection flag - cellID 1 will be stored,
+	// and LCrelations
+	LCFlagImpl flag1(0);
+	flag1.setBit(LCIO::RTHPBIT_ID1);
+	colOfTrkHits->setFlag(flag1.getFlag());
+	
+	// CODIFICATION --->FIXME: METHOD IN GEAR (Centralizing...)
+	CellIDEncoder<TrackerHitPlaneImpl> cellEnc(
+			ILDCellID0::encoder_string+",stripFront:11,stripRear:11",
+			colOfTrkHits);
 	
 	// Go through all clusters
 	for(iterClsVec=clsVec.begin(); iterClsVec!=clsVec.end(); iterClsVec++) 
@@ -1682,12 +1686,11 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 		trkHit->setPosition(posLCIO);
 		// U and V error, not using covMatrix anymore
 		// trkHit->setCovMatrix(covLCIO);
-		// Width of the strip: 1/2 pitch
-		trkHit->setdU( _geometry->getSensorPitch(layerID,1,localPos.getZ())/2.0 );
-		// Strip length // FIXME: by the moment using the minimum distance
-		trkHit->setdV( _geometry->getSensorLength(layerID) );
+		trkHit->setdU( covLCIO[2] );
+		trkHit->setdV( covLCIO[5] );
 		trkHit->setEDep(totalCharge / e); // in electrons
-		trkHit->setTime(pCluster->getTime());
+		//FIXME: Still missing EDepError
+		trkHit->setTime(pCluster->getTime()); //FIXME: NOT IMPLEMENTED
 
 		// The unit vector of the local reference frame of the front sensor
 		// u: rphi direction, v: radial direction
@@ -1710,7 +1713,6 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 				iterSHM!=simHitMap.end(); iterSHM++) 
 		{
 			// Don't save "noise hits", i.e. zero pointers
-			//if (iterSimTrkHMap->first!=0) rkHit->rawHits().push_back(dynamic_cast<SimTrackerHit*>(iterSimTrkHMap->first));
 			// Find contribution with highest weight
 			if( (iterSHM->first!=0) && ((iterSHM->second)>weight) ) 
 			{
@@ -1718,6 +1720,19 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 				weight    = iterSHM->second;
 			}
 		}
+
+		int realLayer = _geometry->getLayerRealID(layerID);
+		// Codification FIXME: Call FTD method?
+		cellEnc["subdet"]=ILDDetID::FTD;
+		cellEnc["side"]=abs(realLayer)/realLayer;
+		cellEnc["layer"]=abs(realLayer);
+		cellEnc["module"]=ladderID+1;
+		cellEnc["sensor"]=1;
+		cellEnc["stripFront"]=pCluster->getStripFront();
+		cellEnc["stripRear"]=pCluster->getStripRear();	
+
+		cellEnc.setCellID(trkHit);
+
 		
 		// Save only hit with highest weight
 		trkHit->rawHits().push_back(simTrkHit);
@@ -1738,6 +1753,7 @@ void SiStripClus::calcHits(ClsVec & clsVec, IMPL::LCCollectionVec * colOfTrkHits
 	// Clear content
 	clsVec.clear();
 }
+
 //
 // Method calculating hit resolution, i.e. covariance matrix
 // The posZ is in local frame coordinate system
@@ -1745,7 +1761,7 @@ float * SiStripClus::calcResolution(const int & layerID,const double & hitTheta,
 		const double & posZ)
 {
 	static float covMatrix[6] = { 0., 0., 0.,
-		                                     0., 0., 0. };
+		                      0., 0., 0. };
 	// Assuming resolution as pitch/2
 	// we need the zposlocal in the local reference system
 	const double halfPitch = _geometry->getSensorPitch(layerID,1,posZ);
@@ -1755,9 +1771,9 @@ float * SiStripClus::calcResolution(const int & layerID,const double & hitTheta,
 
 	// Set covariance matrix in appropriate units*/
 	// Assuming no correlations between the front and rear sensor
-	covMatrix[0] = sigmax/mm * sigmax/mm;
-	covMatrix[2] = sigmay/mm * sigmay/mm;
-	covMatrix[5] = (_geometry->getLadderThick(layerID) 
+	covMatrix[2] = sigmax/mm * sigmax/mm; // Local frame Y (u-vector)
+	covMatrix[5] = sigmay/mm * sigmay/mm; // Local frame Z (v-vector)
+	covMatrix[0] = (_geometry->getLadderThick(layerID) // Local frame x
 			+_geometry->getSensorThick(layerID))/2.0;
 
 	return covMatrix;
